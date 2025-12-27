@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
+from backend.config import Config
+from backend.db import init_db
 
 app = FastAPI(title="Synology Duplicate-Review Web App")
 
@@ -18,7 +20,18 @@ api_router = APIRouter(prefix="/api")
 async def health():
     return {"status": "ok"}
 
+@api_router.get("/status")
+async def status():
+    return {
+        "config": Config.get_status(),
+        "db_initialized": True
+    }
+
 app.include_router(api_router)
+
+@app.on_event("startup")
+async def startup_event():
+    init_db()
 
 @app.get("/")
 async def root():
