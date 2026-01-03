@@ -30,3 +30,4 @@ class Config:
             "local_state_dir": cls.LOCAL_STATE_DIR,
         }
 
+
