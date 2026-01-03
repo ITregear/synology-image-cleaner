@@ -29,5 +29,23 @@ class Config:
             "sorted_root": cls.SORTED_ROOT is not None,
             "local_state_dir": cls.LOCAL_STATE_DIR,
         }
+    
+    @classmethod
+    def is_backup_path(cls, path: str) -> bool:
+        if not cls.BACKUP_ROOT:
+            return False
+        normalized_path = os.path.normpath(path)
+        normalized_backup = os.path.normpath(cls.BACKUP_ROOT)
+        return normalized_path.startswith(normalized_backup + os.sep) or normalized_path == normalized_backup
+    
+    @classmethod
+    def is_sorted_path(cls, path: str) -> bool:
+        if not cls.SORTED_ROOT:
+            return False
+        if cls.is_backup_path(path):
+            return False
+        normalized_path = os.path.normpath(path)
+        normalized_sorted = os.path.normpath(cls.SORTED_ROOT)
+        return normalized_path.startswith(normalized_sorted + os.sep) or normalized_path == normalized_sorted
 
 
