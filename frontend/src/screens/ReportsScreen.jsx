@@ -36,7 +36,7 @@ function ReportsScreen() {
 
   const handleImport = () => {
     if (selectedReport) {
-      navigate('/review')
+      navigate(`/review?report=${encodeURIComponent(selectedReport)}`)
     }
   }
 

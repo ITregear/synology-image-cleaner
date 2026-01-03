@@ -98,10 +98,20 @@ class SSHClient:
             if not success:
                 return None
         
-        if not cls._sftp or not cls._sftp.sock or not cls._sftp.sock.getpeername():
+        try:
+            if cls._sftp:
+                try:
+                    cls._sftp.listdir('.')
+                except:
+                    cls._sftp = None
+        except:
+            cls._sftp = None
+        
+        if not cls._sftp:
             try:
                 cls._sftp = cls._client.open_sftp()
-            except Exception:
+            except Exception as e:
+                print(f"Error opening SFTP: {e}")
                 return None
         
         return cls._sftp
