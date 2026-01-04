@@ -41,7 +41,7 @@ def ignore_duplicate(review_id: int, backup_path: str, sorted_path: str) -> Tupl
     finally:
         conn.close()
 
-def delete_duplicate(review_id: int, backup_path: str, session_id: str) -> Tuple[bool, Optional[str], Optional[Dict]]:
+def delete_duplicate(review_id: int, backup_path: str, session_id: str, recycle_bin_path: Optional[str] = None) -> Tuple[bool, Optional[str], Optional[Dict]]:
     """
     Delete a duplicate by moving it to the recycle bin.
     Returns (success, error_message, undo_info)
@@ -51,12 +51,16 @@ def delete_duplicate(review_id: int, backup_path: str, session_id: str) -> Tuple
     cursor = conn.cursor()
     
     try:
-        # Detect recycle bin for the backup folder
-        backup_root = '/' + '/'.join(backup_path.split('/')[:3])  # Get /volume1/share
-        recycle_bin = detect_recycle_bin(backup_root)
+        # Use provided recycle bin path or try to detect
+        if recycle_bin_path:
+            recycle_bin = recycle_bin_path
+        else:
+            # Detect recycle bin for the backup folder
+            backup_root = '/' + '/'.join(backup_path.split('/')[:3])  # Get /volume1/share
+            recycle_bin = detect_recycle_bin(backup_root)
         
         if not recycle_bin:
-            return False, "Recycle bin not found. Cannot safely delete.", None
+            return False, "Recycle bin path not configured. Please set it in the Connect screen.", None
         
         # Move file to recycle bin
         success, recycle_location, error = move_to_recycle_bin(backup_path, recycle_bin)

@@ -7,8 +7,10 @@ function ConnectScreen() {
   const [loading, setLoading] = useState(true)
   const [backupPath, setBackupPath] = useState('')
   const [sortedPath, setSortedPath] = useState('')
+  const [recycleBinPath, setRecycleBinPath] = useState('')
   const [backupValid, setBackupValid] = useState(false)
   const [sortedValid, setSortedValid] = useState(false)
+  const [recycleBinValid, setRecycleBinValid] = useState(false)
   const [backupError, setBackupError] = useState(null)
   const [sortedError, setSortedError] = useState(null)
   const [pairValidation, setPairValidation] = useState(null)
@@ -49,11 +51,7 @@ function ConnectScreen() {
         const data = await response.json()
         setPairValidation(data)
       } catch (err) {
-        setPairValidation({
-          valid: false,
-          errors: ['Failed to validate paths'],
-          warnings: []
-        })
+        console.error('Error validating pair:', err)
       } finally {
         setIsValidatingPair(false)
       }
@@ -62,88 +60,90 @@ function ConnectScreen() {
     return () => clearTimeout(timer)
   }, [backupPath, sortedPath, backupValid, sortedValid])
 
-  const handleContinue = () => {
-    if (backupPath && sortedPath && backupValid && sortedValid && pairValidation?.valid) {
-      navigate('/scan', { 
-        state: { 
-          backupPath: pairValidation.backup_path || backupPath,
-          sortedPath: pairValidation.sorted_path || sortedPath
-        } 
-      })
-    }
+  const handleBackupValidation = (isValid, error) => {
+    setBackupValid(isValid)
+    setBackupError(error)
   }
+
+  const handleSortedValidation = (isValid, error) => {
+    setSortedValid(isValid)
+    setSortedError(error)
+  }
+
+  const handleRecycleBinValidation = (isValid, error) => {
+    setRecycleBinValid(isValid)
+  }
+
+  const handleClearRecycleBin = () => {
+    setRecycleBinPath('')
+    localStorage.removeItem('recycleBinPath')
+  }
+
+  // Add keyboard shortcut for R to clear recycle bin
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'r' || e.key === 'R') {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+          handleClearRecycleBin()
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [])
+
+  const handleContinue = () => {
+    if (!canContinue) return
+    
+    // Save recycle bin path to localStorage
+    localStorage.setItem('recycleBinPath', recycleBinPath)
+    
+    navigate('/scan', {
+      state: {
+        backupPath: pairValidation.backup_path || backupPath,
+        sortedPath: pairValidation.sorted_path || sortedPath,
+        recycleBinPath: recycleBinPath
+      }
+    })
+  }
+
+  const canContinue = backupValid && sortedValid && recycleBinValid && 
+                      pairValidation?.valid && !isValidatingPair
 
   if (loading) {
-    return <div>Loading configuration status...</div>
+    return <div style={{ maxWidth: '800px', margin: '0 auto' }}>Loading...</div>
   }
 
-  const canContinue = backupPath.trim() && sortedPath.trim() && backupValid && sortedValid && pairValidation?.valid
-
   return (
-    <div style={{ maxWidth: '800px' }}>
-      <h2>Setup</h2>
-      <p style={{ color: '#666', marginBottom: '2rem' }}>
-        Configure folder paths and connect to your NAS to start finding duplicates.
-      </p>
-
-      <div style={{
-        backgroundColor: '#f8f9fa',
-        padding: '1.5rem',
+    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <h2>Configure Paths</h2>
+      
+      <div style={{ 
+        backgroundColor: '#f8f9fa', 
+        padding: '1.5rem', 
         borderRadius: '8px',
         marginBottom: '2rem'
       }}>
-        <h3 style={{ marginTop: 0 }}>Configuration Status</h3>
-        <div style={{ display: 'grid', gap: '0.75rem' }}>
-          <ConfigItem 
-            label="NAS Host" 
-            configured={configStatus?.nas_host} 
-          />
-          <ConfigItem 
-            label="NAS User" 
-            configured={configStatus?.nas_user} 
-          />
-          <ConfigItem 
-            label="Authentication" 
-            configured={configStatus?.nas_password} 
-          />
-        </div>
-      </div>
-
-      <div style={{
-        backgroundColor: '#f8f9fa',
-        padding: '1.5rem',
-        borderRadius: '8px',
-        marginBottom: '2rem'
-      }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Folder Paths</h3>
+        <h3 style={{ marginTop: 0 }}>Folder Paths</h3>
         
-        <div style={{ marginBottom: '1.5rem' }}>
-          <PathInput
-            label="Backup Path"
-            value={backupPath}
-            onChange={setBackupPath}
-            placeholder="/volume1/PhotosBackup or /PhotosBackup"
-            onValidationChange={(isValid, error) => {
-              setBackupValid(isValid)
-              setBackupError(error)
-            }}
-            storageKey="last_backup_path"
-          />
-        </div>
+        <PathInput
+          label="Backup Path"
+          value={backupPath}
+          onChange={setBackupPath}
+          placeholder="/volume1/PhotosBackup"
+          storageKey="backupPath"
+          onValidationChange={handleBackupValidation}
+        />
 
-        <div style={{ marginBottom: '1rem' }}>
-          <PathInput
-            label="Sorted Path"
-            value={sortedPath}
-            onChange={setSortedPath}
-            placeholder="/volume1/PhotosSorted or /PhotosSorted"
-            onValidationChange={(isValid, error) => {
-              setSortedValid(isValid)
-              setSortedError(error)
-            }}
-            storageKey="last_sorted_path"
-          />
-        </div>
+        <PathInput
+          label="Sorted Path"
+          value={sortedPath}
+          onChange={setSortedPath}
+          placeholder="/volume1/PhotosSorted"
+          storageKey="sortedPath"
+          onValidationChange={handleSortedValidation}
+        />
 
         {isValidatingPair && (
           <div style={{
@@ -205,6 +205,47 @@ function ConnectScreen() {
         </p>
       </div>
 
+      <div style={{
+        marginTop: '2rem',
+        marginBottom: '2rem',
+        padding: '1.5rem',
+        backgroundColor: '#f0f7ff',
+        borderRadius: '8px',
+        border: '1px solid #0066cc'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 style={{ margin: 0, color: '#0066cc' }}>Recycle Bin Configuration</h3>
+          {recycleBinPath && (
+            <button
+              onClick={handleClearRecycleBin}
+              style={{
+                padding: '0.5rem 1rem',
+                fontSize: '0.875rem',
+                backgroundColor: '#ffa726',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Clear (R)
+            </button>
+          )}
+        </div>
+        <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
+          Deleted files will be moved here (not permanently deleted). Press <strong>R</strong> to clear and re-select.
+        </p>
+        <PathInput
+          label="Recycle Bin Path"
+          value={recycleBinPath}
+          onChange={setRecycleBinPath}
+          placeholder="/home/Photos/Recycling Bin"
+          storageKey="recycleBinPath"
+          onValidationChange={handleRecycleBinValidation}
+        />
+      </div>
+
       <button
         onClick={handleContinue}
         disabled={!canContinue}
@@ -224,7 +265,7 @@ function ConnectScreen() {
 
       {!canContinue && (
         <p style={{ color: '#d32f2f', marginTop: '1rem' }}>
-          Please enter and validate both folder paths to continue.
+          Please enter and validate all paths (Backup, Sorted, and Recycle Bin) to continue.
         </p>
       )}
     </div>

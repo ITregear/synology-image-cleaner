@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import uuid
 from typing import List, Dict, Optional, Set
 from datetime import datetime
 from backend.ssh_client import SSHClient
@@ -122,92 +123,83 @@ def find_duplicates(backup_path: str, sorted_path: str) -> List[Dict]:
     logger.info(f"Found {len(duplicate_pairs)} duplicate pairs")
     return duplicate_pairs
 
-def save_duplicates_to_db(duplicate_pairs: List[Dict], scan_session_id: Optional[str] = None) -> int:
+def save_duplicates_to_db(duplicate_pairs: List[Dict], backup_path: str = '', sorted_path: str = '', scan_session_id: Optional[str] = None) -> str:
     """
     Save duplicate pairs to the database.
-    Returns the number of pairs saved.
+    Checks against ignored_pairs table and automatically marks previously ignored pairs.
+    Returns the scan_session_id.
     """
     db_path = os.path.join(Config.LOCAL_STATE_DIR, "state.db")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     try:
-        # Create scan_sessions table if it doesn't exist
+        # Get all previously ignored pairs
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS scan_sessions (
-                id TEXT PRIMARY KEY,
-                backup_path TEXT NOT NULL,
-                sorted_path TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                pair_count INTEGER DEFAULT 0
-            )
+            SELECT backup_path, sorted_path FROM ignored_pairs
         """)
+        ignored_set = set((row[0], row[1]) for row in cursor.fetchall())
+        logger.info(f"Found {len(ignored_set)} previously ignored pairs")
         
-        # Update review_queue table structure if needed (add scan_session_id)
-        try:
-            cursor.execute("ALTER TABLE review_queue ADD COLUMN scan_session_id TEXT")
-        except sqlite3.OperationalError:
-            pass  # Column already exists
-        
-        # If no session ID provided, create one
+        # Create a new scan session
         if not scan_session_id:
-            scan_session_id = datetime.now().isoformat()
+            scan_session_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
         
-        # Clear old pairs for this session (if re-running)
-        cursor.execute("DELETE FROM review_queue WHERE scan_session_id = ?", (scan_session_id,))
+        # Count pairs that are NOT already ignored
+        new_pair_count = sum(1 for pair in duplicate_pairs 
+                            if (pair['backup_path'], pair['sorted_path']) not in ignored_set)
         
-        # Insert new pairs
-        created_at = datetime.now().isoformat()
-        for pair in duplicate_pairs:
-            cursor.execute("""
-                INSERT INTO review_queue 
-                (group_id, backup_path, kept_path, reviewed, scan_session_id, created_at)
-                VALUES (?, ?, ?, 0, ?, ?)
-            """, (
-                f"pair_{hash(pair['backup_path'])}",
-                pair['backup_path'],
-                pair['sorted_path'],
-                scan_session_id,
-                created_at
-            ))
-        
-        # Update or insert scan session
-        # Extract root paths from first pair if available
-        backup_root = ''
-        sorted_root = ''
-        if duplicate_pairs:
-            # Get directory of first file
+        # Extract root paths from params or first pair
+        backup_root = backup_path
+        sorted_root = sorted_path
+        if not backup_root and duplicate_pairs:
             backup_root = os.path.dirname(duplicate_pairs[0]['backup_path'])
+        if not sorted_root and duplicate_pairs:
             sorted_root = os.path.dirname(duplicate_pairs[0]['sorted_path'])
         
         cursor.execute("""
-            INSERT OR REPLACE INTO scan_sessions 
-            (id, backup_path, sorted_path, created_at, pair_count)
+            INSERT INTO scan_sessions (id, backup_path, sorted_path, created_at, pair_count)
             VALUES (?, ?, ?, ?, ?)
-        """, (
-            scan_session_id,
-            backup_root,
-            sorted_root,
-            created_at,
-            len(duplicate_pairs)
-        ))
+        """, (scan_session_id, backup_root, sorted_root, timestamp, new_pair_count))
+        
+        # Insert all duplicate pairs into review_queue
+        # Mark as ignored if they were previously ignored
+        for pair in duplicate_pairs:
+            is_ignored = (pair['backup_path'], pair['sorted_path']) in ignored_set
+            
+            cursor.execute("""
+                INSERT INTO review_queue (
+                    group_id, backup_path, kept_path, reviewed, action, scan_session_id, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                pair['group_id'],
+                pair['backup_path'],
+                pair['sorted_path'],
+                1 if is_ignored else 0,  # Mark as reviewed if ignored
+                'ignored' if is_ignored else None,  # Set action to 'ignored'
+                scan_session_id,
+                timestamp
+            ))
         
         conn.commit()
-        logger.info(f"Saved {len(duplicate_pairs)} duplicate pairs to database (session: {scan_session_id})")
+        logger.info(f"Saved {len(duplicate_pairs)} duplicate pairs to database for session {scan_session_id}")
+        logger.info(f"{new_pair_count} new pairs, {len(duplicate_pairs) - new_pair_count} previously ignored")
         return scan_session_id
         
     except Exception as e:
         logger.error(f"Error saving duplicates to database: {e}")
         conn.rollback()
-        return 0
+        return ""
     finally:
         conn.close()
 
-def get_duplicates_from_db(scan_session_id: Optional[str] = None, limit: Optional[int] = None, offset: int = 0, include_reviewed: bool = True) -> List[Dict]:
+def get_duplicates_from_db(scan_session_id: Optional[str] = None, limit: Optional[int] = None, offset: int = 0, include_reviewed: bool = False) -> List[Dict]:
     """
     Retrieve duplicate pairs from the database.
     If scan_session_id is None, returns pairs from the most recent session.
-    If include_reviewed is False, only returns unreviewed pairs.
+    By default, excludes reviewed/ignored/deleted pairs (include_reviewed=False).
     """
     db_path = os.path.join(Config.LOCAL_STATE_DIR, "state.db")
     conn = sqlite3.connect(db_path)
@@ -228,6 +220,7 @@ def get_duplicates_from_db(scan_session_id: Optional[str] = None, limit: Optiona
                 return []
         
         # Get pairs for this session
+        # By default, exclude reviewed items (ignored or deleted)
         query = """
             SELECT id, backup_path, kept_path, reviewed, action
             FROM review_queue
@@ -235,7 +228,8 @@ def get_duplicates_from_db(scan_session_id: Optional[str] = None, limit: Optiona
         """
         
         if not include_reviewed:
-            query += " AND reviewed = 0"
+            # Exclude pairs that have been reviewed (ignored or deleted)
+            query += " AND (reviewed = 0 OR reviewed IS NULL)"
         
         query += " ORDER BY id"
         

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 function ScanScreen() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { backupPath, sortedPath } = location.state || {}
+  const { backupPath, sortedPath, recycleBinPath } = location.state || {}
   
   const [scanning, setScanning] = useState(false)
   const [scanComplete, setScanComplete] = useState(false)
@@ -57,7 +57,8 @@ function ScanScreen() {
         scanSessionId: scanSessionId,
         duplicateCount: duplicateCount,
         backupPath: backupPath,
-        sortedPath: sortedPath
+        sortedPath: sortedPath,
+        recycleBinPath: recycleBinPath
       }
     })
   }

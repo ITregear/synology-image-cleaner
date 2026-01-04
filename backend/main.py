@@ -266,6 +266,7 @@ class ReviewActionRequest(BaseModel):
     backup_path: str
     sorted_path: str
     session_id: str
+    recycle_bin_path: Optional[str] = None
 
 @api_router.post("/review/ignore")
 async def ignore_review(request: ReviewActionRequest):
@@ -286,7 +287,12 @@ async def ignore_review(request: ReviewActionRequest):
 async def delete_review(request: ReviewActionRequest):
     """Delete a duplicate by moving to recycle bin."""
     try:
-        success, error, undo_info = delete_duplicate(request.review_id, request.backup_path, request.session_id)
+        success, error, undo_info = delete_duplicate(
+            request.review_id, 
+            request.backup_path, 
+            request.session_id,
+            request.recycle_bin_path
+        )
         if not success:
             raise HTTPException(status_code=500, detail=error)
         

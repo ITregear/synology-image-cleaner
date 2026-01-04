@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 function ReviewScreen() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { scanSessionId, duplicateCount, backupPath, sortedPath } = location.state || {}
+  const { scanSessionId, duplicateCount, backupPath, sortedPath, recycleBinPath } = location.state || {}
   
   const [activeTab, setActiveTab] = useState('duplicated')
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -121,7 +121,8 @@ function ReviewScreen() {
           review_id: currentPair.id,
           backup_path: currentPair.backup_path,
           sorted_path: currentPair.sorted_path,
-          session_id: scanSessionId
+          session_id: scanSessionId,
+          recycle_bin_path: recycleBinPath
         })
       })
       
