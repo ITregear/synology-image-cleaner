@@ -2,20 +2,16 @@ import ConnectionIndicator from './ConnectionIndicator'
 
 function Layout({ children }) {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <nav style={{
-        borderBottom: '1px solid #e0e0e0',
-        padding: '1rem 2rem',
-        backgroundColor: '#f8f9fa'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '600' }}>
+    <div className="min-h-screen flex flex-col bg-sh-bg">
+      <nav className="border-b border-sh-border bg-sh-bg-secondary/50 backdrop-blur-sm fixed top-0 left-0 right-0 z-50">
+        <div className="flex items-center justify-between px-8 py-4">
+          <h1 className="text-xl font-bold text-sh-text tracking-tight">
             Synology Image Cleaner
           </h1>
           <ConnectionIndicator />
         </div>
       </nav>
-      <main style={{ flex: 1, padding: '2rem' }}>
+      <main className="flex-1 mt-[73px]">
         {children}
       </main>
     </div>

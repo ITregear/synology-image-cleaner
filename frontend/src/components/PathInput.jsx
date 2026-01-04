@@ -14,24 +14,20 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
   const containerRef = useRef(null)
   const overlayRef = useRef(null)
   
-  // Filter suggestions based on typed text - this is the source of truth
   const filteredSuggestions = useMemo(() => {
     const lastSlashIndex = value.lastIndexOf('/')
     const currentTypedPart = value.substring(lastSlashIndex + 1)
     
-    // If we're at a folder boundary (ends with /) or no typed part, show all
     if (value.endsWith('/') || !currentTypedPart) {
       return suggestions
     }
     
-    // Otherwise, only show if basename starts with typed part
     return suggestions.filter(suggestion => {
       const suggestionBasename = suggestion.substring(suggestion.lastIndexOf('/') + 1)
       return suggestionBasename.toLowerCase().startsWith(currentTypedPart.toLowerCase())
     })
   }, [suggestions, value])
 
-  // Load cached path on mount
   useEffect(() => {
     if (storageKey) {
       const cached = localStorage.getItem(storageKey)
@@ -41,14 +37,12 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
     }
   }, [storageKey, value, onChange])
 
-  // Save to cache when value changes
   useEffect(() => {
     if (storageKey && value) {
       localStorage.setItem(storageKey, value)
     }
   }, [storageKey, value])
 
-  // Fetch suggestions with debounce - trigger on / or when typing
   useEffect(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
@@ -61,7 +55,6 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
       return
     }
 
-    // Trigger immediately if user just typed a / or if value ends with /
     const shouldTriggerImmediately = value.endsWith('/')
     
     const fetchSuggestions = async () => {
@@ -69,12 +62,9 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
         const response = await fetch(`/api/paths/suggest?partial=${encodeURIComponent(value)}`)
         const data = await response.json()
         if (data.suggestions && data.suggestions.length > 0) {
-          // Additional frontend filtering to ensure only matching suggestions are shown
-          // Extract the basename being typed
           const lastSlashIndex = value.lastIndexOf('/')
           const typedBasename = lastSlashIndex >= 0 ? value.substring(lastSlashIndex + 1) : value
           
-          // Filter suggestions to only show those whose basename starts with typedBasename (case-insensitive)
           let filteredSuggestions = data.suggestions
           if (typedBasename && !value.endsWith('/')) {
             const typedBasenameLower = typedBasename.toLowerCase()
@@ -87,27 +77,20 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
           setSuggestions(filteredSuggestions)
           setShowSuggestions(filteredSuggestions.length > 0)
           
-          // Find the best inline suggestion (first one that starts with current value)
-          // Only show inline suggestion if not ending with / (we're typing a name)
           if (!value.endsWith('/') && filteredSuggestions.length > 0) {
-            // The first filtered suggestion is the best match
             const bestMatch = filteredSuggestions[0]
             if (bestMatch) {
-              // Extract the part to complete (folder name + /)
               const completion = bestMatch.substring(value.length)
-              // Ensure completion ends with /
               const folderCompletion = completion.endsWith('/') ? completion : completion + '/'
               setInlineSuggestion(folderCompletion)
             } else {
               setInlineSuggestion('')
             }
           } else {
-            // If ending with /, don't show inline suggestion, just show dropdown
             setInlineSuggestion('')
           }
         } else {
           setSuggestions([])
-          // If value ends with / but no suggestions, keep dropdown closed
           setShowSuggestions(false)
           setInlineSuggestion('')
         }
@@ -121,7 +104,7 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
     if (shouldTriggerImmediately) {
       fetchSuggestions()
     } else {
-      debounceTimerRef.current = setTimeout(fetchSuggestions, 200) // Shorter debounce for better responsiveness
+      debounceTimerRef.current = setTimeout(fetchSuggestions, 200)
     }
 
     return () => {
@@ -131,7 +114,6 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
     }
   }, [value])
 
-  // Validate path when it changes (with debounce)
   useEffect(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
@@ -160,7 +142,6 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
         setValidationError(data.error)
         
         if (data.normalized_path && data.normalized_path !== value) {
-          // Auto-update to normalized path if it was inferred
           onChange(data.normalized_path)
         }
         
@@ -176,7 +157,7 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
       } finally {
         setIsValidating(false)
       }
-    }, 500) // 500ms debounce for validation
+    }, 500)
 
     return () => {
       if (debounceTimerRef.current) {
@@ -185,7 +166,6 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
     }
   }, [value, onChange, onValidationChange])
 
-  // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -204,15 +184,12 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
   }, [])
 
   const handleSuggestionClick = (suggestion) => {
-    // Append / to trigger next level of suggestions
     const newValue = suggestion.endsWith('/') ? suggestion : suggestion + '/'
     onChange(newValue)
     setShowSuggestions(false)
     setSelectedSuggestionIndex(-1)
-    // Focus and trigger suggestions for next level
     setTimeout(() => {
       inputRef.current?.focus()
-      // Trigger suggestions by dispatching input event
       if (inputRef.current) {
         inputRef.current.dispatchEvent(new Event('input', { bubbles: true }))
       }
@@ -221,31 +198,24 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
 
   const acceptInlineSuggestion = () => {
     if (inlineSuggestion) {
-      // Accept the inline suggestion (which already includes /)
       const newValue = value + inlineSuggestion
       onChange(newValue)
       setInlineSuggestion('')
-      // Trigger suggestions for next level if ending with /
       if (newValue.endsWith('/')) {
         setTimeout(() => {
           inputRef.current?.focus()
-          // Trigger suggestions by dispatching input event
           if (inputRef.current) {
             inputRef.current.dispatchEvent(new Event('input', { bubbles: true }))
           }
         }, 0)
       }
     } else if (filteredSuggestions.length > 0) {
-      // If no inline suggestion but we have filtered suggestions, use the first one
-      // IMPORTANT: Use filteredSuggestions, not suggestions, to get the correct first item
       handleSuggestionClick(filteredSuggestions[0])
     }
   }
 
   const handleKeyDown = (e) => {
-    // Tab should autocomplete, not move to next field
     if (e.key === 'Tab') {
-      // If there's an inline suggestion or dropdown suggestions, autocomplete
       if (inlineSuggestion || filteredSuggestions.length > 0) {
         e.preventDefault()
         acceptInlineSuggestion()
@@ -260,7 +230,6 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
         : selectedSuggestionIndex
       setSelectedSuggestionIndex(nextIndex)
       setShowSuggestions(true)
-      // Scroll into view
       const suggestionElement = suggestionsRef.current?.querySelector(`[data-index="${nextIndex}"]`)
       suggestionElement?.scrollIntoView({ block: 'nearest' })
     } else if (e.key === 'ArrowUp' && filteredSuggestions.length > 0) {
@@ -284,50 +253,28 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
   }
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>
+    <div ref={containerRef} className="relative w-full">
+      <label className="block mb-2 font-semibold text-sh-text flex items-center gap-2">
         {label}
         {isValidating && (
-          <span style={{ marginLeft: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
+          <span className="text-sm text-sh-text-muted font-normal">
             (validating...)
           </span>
         )}
         {!isValidating && value && (
-          <span style={{ 
-            marginLeft: '0.5rem', 
-            fontSize: '0.875rem', 
-            color: isValid ? '#4caf50' : '#f44336',
-            fontWeight: '600'
-          }}>
+          <span className={`text-sm font-semibold ${isValid ? 'text-sh-success' : 'text-sh-error'}`}>
             {isValid ? '✓' : '✗'}
           </span>
         )}
       </label>
-      <div style={{ position: 'relative', width: '100%' }}>
-        {/* Overlay for inline autocomplete - shows greyed out completion */}
+      <div className="relative w-full">
         {inlineSuggestion && !showSuggestions && (
           <div
             ref={overlayRef}
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              padding: '0.75rem',
-              fontSize: '1rem',
-              fontFamily: 'monospace',
-              pointerEvents: 'none',
-              zIndex: 0,
-              whiteSpace: 'pre',
-              overflow: 'hidden',
-              border: `2px solid transparent`,
-              borderRadius: '4px',
-              lineHeight: '1.5',
-              color: 'transparent' // Make the whole thing transparent so we can see input through it
-            }}
+            className="absolute top-0 left-0 right-0 p-3 text-base font-mono pointer-events-none z-0 whitespace-pre overflow-hidden border-2 border-transparent rounded-lg leading-relaxed"
           >
-            <span style={{ color: 'transparent' }}>{value}</span>
-            <span style={{ color: '#999' }}>{inlineSuggestion}</span>
+            <span className="text-transparent">{value}</span>
+            <span className="text-sh-text-muted opacity-50">{inlineSuggestion}</span>
           </div>
         )}
         <input
@@ -345,97 +292,50 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
           }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            fontSize: '1rem',
-            border: `2px solid ${validationError ? '#f44336' : isValid && value ? '#4caf50' : '#ddd'}`,
-            borderRadius: '4px',
-            fontFamily: 'monospace',
-            outline: 'none',
-            backgroundColor: inlineSuggestion && !showSuggestions ? 'transparent' : 'white',
-            position: 'relative',
-            zIndex: 1,
-            color: '#000'
-          }}
+          className={`w-full p-3 text-base border-2 rounded-lg font-mono outline-none relative z-[1] transition-all duration-200 ${
+            validationError 
+              ? 'border-sh-error bg-sh-error/5 text-sh-text focus:border-sh-error focus:ring-2 focus:ring-sh-error/20' 
+              : isValid && value 
+                ? 'border-sh-success bg-sh-success/5 text-sh-text focus:border-sh-success focus:ring-2 focus:ring-sh-success/20' 
+                : 'border-sh-border bg-sh-bg-secondary text-sh-text focus:border-sh-primary focus:ring-2 focus:ring-sh-primary/20'
+          } ${inlineSuggestion && !showSuggestions ? 'bg-transparent' : ''}`}
         />
-        {/* Inline autocomplete overlay - positioned behind input to show grey completion */}
         {inlineSuggestion && !showSuggestions && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              padding: '0.75rem',
-              fontSize: '1rem',
-              fontFamily: 'monospace',
-              pointerEvents: 'none',
-              zIndex: 2,
-              whiteSpace: 'pre',
-              overflow: 'hidden',
-              lineHeight: '1.5',
-              color: 'transparent'
-            }}
-          >
-            <span style={{ color: 'transparent' }}>{value}</span>
-            <span style={{ color: '#999', backgroundColor: 'transparent' }}>{inlineSuggestion}</span>
+          <div className="absolute top-0 left-0 p-3 text-base font-mono pointer-events-none z-[2] whitespace-pre overflow-hidden leading-relaxed">
+            <span className="text-transparent">{value}</span>
+            <span className="text-sh-text-muted opacity-50">{inlineSuggestion}</span>
           </div>
         )}
       </div>
       {validationError && (
-        <div style={{
-          marginTop: '0.25rem',
-          fontSize: '0.875rem',
-          color: '#f44336'
-        }}>
+        <div className="mt-1 text-sm text-sh-error">
           {validationError}
         </div>
       )}
       {showSuggestions && filteredSuggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          style={{
-            position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
-            backgroundColor: 'white',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            maxHeight: '200px',
-            overflowY: 'auto',
-            zIndex: 1000,
-            marginTop: '0.25rem'
-          }}
+          className="absolute top-full left-0 right-0 bg-sh-surface border border-sh-border rounded-lg shadow-sh-md max-h-[200px] overflow-y-auto z-[1000] mt-1"
         >
           {filteredSuggestions.map((suggestion, index) => {
-            // Calculate which part is typed vs suggested
             let typedPortion = ''
             let remainingPortion = suggestion
             
             if (value.endsWith('/')) {
-              // Full value is parent, entire suggestion basename is new
               typedPortion = value
               remainingPortion = suggestion.substring(value.length)
             } else {
-              // Value includes partial folder name
-              // Find the parent directory and typed basename
               const lastSlashIndex = value.lastIndexOf('/')
               const parentPath = lastSlashIndex >= 0 ? value.substring(0, lastSlashIndex + 1) : '/'
               const typedBasename = lastSlashIndex >= 0 ? value.substring(lastSlashIndex + 1) : value
               
-              // Extract the basename from the suggestion
               const suggestionBasename = suggestion.substring(parentPath.length)
               
-              // Check if suggestion starts with parent path and basename starts with typed basename
               if (suggestion.toLowerCase().startsWith(parentPath.toLowerCase()) && 
                   suggestionBasename.toLowerCase().startsWith(typedBasename.toLowerCase())) {
-                // Show: parent (black) + typed basename (black) + remaining basename (grey)
                 typedPortion = parentPath + typedBasename
                 remainingPortion = suggestionBasename.substring(typedBasename.length)
               } else {
-                // Fallback: show parent in black, rest in grey
                 typedPortion = parentPath
                 remainingPortion = suggestionBasename
               }
@@ -452,24 +352,17 @@ function PathInput({ label, value, onChange, placeholder, onValidationChange, st
                   }
                 }}
                 tabIndex={0}
-                style={{
-                  padding: '0.75rem',
-                  cursor: 'pointer',
-                  borderBottom: index < suggestions.length - 1 ? '1px solid #eee' : 'none',
-                  fontFamily: 'monospace',
-                  fontSize: '0.875rem',
-                  backgroundColor: index === selectedSuggestionIndex ? '#e3f2fd' : 'white',
-                  fontWeight: index === selectedSuggestionIndex ? '600' : '400'
-                }}
-                onMouseEnter={() => {
-                  setSelectedSuggestionIndex(index)
-                }}
-                onMouseLeave={() => {
-                  // Don't clear on mouse leave, keep selection
-                }}
+                className={`p-3 cursor-pointer font-mono text-sm transition-colors duration-150 ${
+                  index < suggestions.length - 1 ? 'border-b border-sh-border' : ''
+                } ${
+                  index === selectedSuggestionIndex 
+                    ? 'bg-sh-primary/10 font-semibold' 
+                    : 'hover:bg-sh-surface-hover'
+                }`}
+                onMouseEnter={() => setSelectedSuggestionIndex(index)}
               >
-                <span style={{ color: '#000' }}>{typedPortion}</span>
-                <span style={{ color: '#999' }}>{remainingPortion}</span>
+                <span className="text-sh-text">{typedPortion}</span>
+                <span className="text-sh-text-muted">{remainingPortion}</span>
               </div>
             )
           })}

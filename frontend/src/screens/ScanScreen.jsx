@@ -68,33 +68,32 @@ function ScanScreen() {
   }
 
   return (
-    <div style={{ maxWidth: '1000px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <h2 style={{ margin: 0 }}>Duplicate Scan</h2>
-          <p style={{ color: '#666', marginTop: '0.5rem', marginBottom: 0 }}>
-            Scan for duplicate image files between the selected folders.
-          </p>
-        </div>
+    <div className="max-w-5xl mx-auto px-8 py-12">
+      <div className="mb-12 text-center">
+        <h1 className="text-4xl font-bold text-sh-text mb-4">Duplicate Scan</h1>
+        <p className="text-sh-text-secondary text-lg">
+          Scan for duplicate image files between the selected folders
+        </p>
       </div>
 
-      <div style={{
-        backgroundColor: '#f8f9fa',
-        padding: '1.5rem',
-        borderRadius: '8px',
-        marginBottom: '2rem'
-      }}>
-        <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Scan Configuration</h3>
-        <div style={{ display: 'grid', gap: '0.75rem' }}>
-          <div>
-            <strong>Backup Path:</strong>
-            <div style={{ fontFamily: 'monospace', fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+      <div className="sh-card p-8 mb-8">
+        <div className="flex items-center gap-3 mb-6">
+          <svg className="w-6 h-6 text-sh-primary" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+          </svg>
+          <h2 className="text-2xl font-bold text-sh-text">Scan Configuration</h2>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="bg-sh-bg-tertiary rounded-lg p-4 border border-sh-border">
+            <div className="text-sm font-semibold text-sh-text-secondary mb-2">Backup Path</div>
+            <div className="font-mono text-sm text-sh-text break-all">
               {backupPath}
             </div>
           </div>
-          <div>
-            <strong>Sorted Path:</strong>
-            <div style={{ fontFamily: 'monospace', fontSize: '0.875rem', color: '#666', marginTop: '0.25rem' }}>
+          <div className="bg-sh-bg-tertiary rounded-lg p-4 border border-sh-border">
+            <div className="text-sm font-semibold text-sh-text-secondary mb-2">Sorted Path</div>
+            <div className="font-mono text-sm text-sh-text break-all">
               {sortedPath}
             </div>
           </div>
@@ -102,45 +101,47 @@ function ScanScreen() {
       </div>
 
       {error && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#ffebee',
-          color: '#c62828',
-          borderRadius: '4px',
-          marginBottom: '1rem'
-        }}>
-          Error: {error}
+        <div className="sh-card p-6 mb-8 bg-sh-error/10 border-sh-error">
+          <div className="flex items-center gap-3 text-sh-error">
+            <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div>
+              <div className="font-bold mb-1">Error</div>
+              <div className="text-sm">{error}</div>
+            </div>
+          </div>
         </div>
       )}
 
       {!scanComplete && (
-        <div style={{
-          padding: '2rem',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '8px',
-          textAlign: 'center'
-        }}>
+        <div className="sh-card p-12 text-center">
           {scanning ? (
-            <div>
-              <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>Scanning folders...</p>
-              <p style={{ color: '#666' }}>This may take a while depending on folder size.</p>
+            <div className="animate-scale-in">
+              <div className="text-6xl mb-6 animate-pulse-slow">🔍</div>
+              <h2 className="text-3xl font-bold text-sh-text mb-4">Scanning Folders...</h2>
+              <p className="text-sh-text-secondary text-lg mb-6">
+                Comparing files between backup and sorted directories
+              </p>
+              <div className="inline-flex items-center gap-3 px-6 py-3 bg-sh-info/10 border border-sh-info rounded-lg text-sh-info text-sm">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                This may take a while for large directories
+              </div>
             </div>
           ) : (
-            <div>
-              <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>Ready to scan</p>
+            <div className="animate-scale-in">
+              <div className="text-7xl mb-6">✨</div>
+              <h2 className="text-3xl font-bold text-sh-text mb-4">Ready to Scan</h2>
+              <p className="text-sh-text-secondary text-lg mb-8">
+                Click below to start scanning for duplicate files
+              </p>
               <button
                 onClick={handleStartScan}
                 disabled={scanning}
-                style={{
-                  padding: '0.75rem 2rem',
-                  fontSize: '1rem',
-                  backgroundColor: '#0066cc',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: '600'
-                }}
+                className="sh-button-primary text-lg py-4 px-12 shadow-sh-glow"
               >
                 Start Scan
               </button>
@@ -150,30 +151,23 @@ function ScanScreen() {
       )}
 
       {scanComplete && (
-        <div style={{
-          padding: '2rem',
-          backgroundColor: '#e8f5e9',
-          borderRadius: '8px',
-          textAlign: 'center'
-        }}>
-          <h3 style={{ marginTop: 0, color: '#2e7d32' }}>Scan Complete!</h3>
-          <p style={{ fontSize: '1.125rem', marginBottom: '1rem' }}>
-            Found <strong>{duplicateCount}</strong> duplicate pair{duplicateCount !== 1 ? 's' : ''}
+        <div className="sh-card p-12 text-center border-4 border-sh-success bg-sh-success/5 animate-scale-in">
+          <div className="text-7xl mb-6">🎉</div>
+          <h2 className="text-3xl font-bold text-sh-success mb-4">Scan Complete!</h2>
+          <p className="text-sh-text-secondary text-xl mb-2">
+            Found <span className="font-bold text-sh-primary text-2xl">{duplicateCount}</span> duplicate pair{duplicateCount !== 1 ? 's' : ''}
+          </p>
+          <p className="text-sh-text-muted text-sm mb-8">
+            Ready to review and clean up your duplicates
           </p>
           <button
             onClick={handleReview}
-            style={{
-              padding: '0.75rem 2rem',
-              fontSize: '1rem',
-              backgroundColor: '#4caf50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: '600'
-            }}
+            className="sh-button-primary text-lg py-4 px-12 shadow-sh-glow inline-flex items-center gap-3"
           >
             Review Duplicates
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
           </button>
         </div>
       )}
@@ -182,4 +176,3 @@ function ScanScreen() {
 }
 
 export default ScanScreen
-

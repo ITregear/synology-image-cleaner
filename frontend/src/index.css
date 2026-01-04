@@ -1,36 +1,89 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply bg-sh-bg text-sh-text antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+  }
+
+  #root {
+    @apply min-h-screen bg-sh-bg;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  button {
+    @apply font-sans;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  h2 {
+    @apply text-2xl;
+  }
+
+  h3 {
+    @apply text-xl;
+  }
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: #333;
-}
+@layer components {
+  .sh-button-primary {
+    @apply bg-sh-primary hover:bg-sh-primary-dark active:bg-sh-primary text-white font-semibold py-3 px-6 rounded-lg transition-all duration-150 shadow-sh hover:shadow-sh-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
 
-#root {
-  min-height: 100vh;
-}
+  .sh-button-secondary {
+    @apply bg-sh-surface hover:bg-sh-surface-hover active:bg-sh-surface text-sh-text font-semibold py-3 px-6 rounded-lg transition-all duration-150 shadow-sh hover:shadow-sh-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  .sh-button-danger {
+    @apply bg-sh-error hover:bg-sh-error/90 active:bg-sh-error text-white font-semibold py-3 px-6 rounded-lg transition-all duration-150 shadow-sh hover:shadow-sh-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
 
-button {
-  font-family: inherit;
-}
+  .sh-button-warning {
+    @apply bg-sh-warning hover:bg-sh-warning/90 active:bg-sh-warning text-white font-semibold py-3 px-6 rounded-lg transition-all duration-150 shadow-sh hover:shadow-sh-md hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  }
 
-button:hover:not(:disabled) {
-  opacity: 0.9;
-}
+  .sh-button-ghost {
+    @apply bg-transparent hover:bg-sh-surface/50 text-sh-text-secondary hover:text-sh-text font-medium py-2 px-4 rounded-lg transition-all duration-150;
+  }
 
-button:active:not(:disabled) {
-  opacity: 0.8;
+  .sh-card {
+    @apply bg-sh-surface rounded-xl border border-sh-border shadow-sh backdrop-blur-sm;
+  }
+
+  .sh-sidebar {
+    @apply fixed top-0 bottom-0 bg-sh-bg-secondary/95 backdrop-blur-md border-sh-border shadow-sh-xl overflow-y-auto;
+  }
+
+  .sh-kbd {
+    @apply inline-flex items-center justify-center px-2.5 py-1 text-xs font-mono font-bold text-sh-text-secondary bg-sh-bg-tertiary border border-sh-border-light rounded shadow-sh-sm;
+  }
+
+  .sh-input {
+    @apply w-full px-4 py-3 bg-sh-bg-secondary/50 border border-sh-border rounded-lg text-sh-text placeholder-sh-text-muted focus:outline-none focus:border-sh-primary focus:ring-2 focus:ring-sh-primary/20 focus:bg-sh-bg-secondary transition-all duration-200;
+  }
+
+  .sh-divider {
+    @apply border-t border-sh-border;
+  }
 }
 

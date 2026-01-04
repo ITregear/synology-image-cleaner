@@ -10,7 +10,7 @@ from backend.ssh_client import SSHClient
 from backend.duplicate_scanner import find_duplicates, save_duplicates_to_db, get_duplicates_from_db, get_scan_sessions
 from backend.thumbnail_service import fetch_and_resize_image
 from backend.path_utils import suggest_paths, validate_path, infer_volume_path, is_subpath
-from backend.review_actions import ignore_duplicate, delete_duplicate, undo_last_action, get_review_stats
+from backend.review_actions import ignore_duplicate, unignore_duplicate, delete_duplicate, undo_last_action, get_review_stats
 import logging
 from datetime import datetime
 
@@ -285,6 +285,21 @@ async def ignore_review(request: ReviewActionRequest):
         raise
     except Exception as e:
         logger.exception("Error ignoring duplicate")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/review/unignore")
+async def unignore_review(request: ReviewActionRequest):
+    """Unignore a previously ignored duplicate pair."""
+    try:
+        success, error = unignore_duplicate(request.review_id, request.backup_path, request.sorted_path)
+        if not success:
+            raise HTTPException(status_code=500, detail=error)
+        
+        return {"success": True, "action": "unignored"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error unignoring duplicate")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.post("/review/delete")

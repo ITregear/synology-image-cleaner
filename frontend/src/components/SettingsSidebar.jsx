@@ -123,55 +123,28 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
     <>
       <div 
         onClick={handleClose}
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 999,
-          animation: isClosing ? 'fadeOut 0.2s ease-in-out' : 'fadeIn 0.2s ease-in-out'
-        }}
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
       />
       
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        width: '600px',
-        backgroundColor: 'white',
-        boxShadow: '-4px 0 12px rgba(0, 0, 0, 0.15)',
-        zIndex: 1000,
-        overflowY: 'auto',
-        animation: isClosing ? 'slideOutRight 0.3s ease-in-out' : 'slideInRight 0.3s ease-in-out'
-      }}>
-        <div style={{ padding: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Settings</h2>
+      <div className={`fixed top-0 right-0 bottom-0 w-[600px] bg-sh-bg-secondary border-l-2 border-sh-border shadow-sh-xl z-[1000] overflow-y-auto ${isClosing ? 'animate-slide-out-right' : 'animate-slide-in-right'}`}>
+        <div className="p-8">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-bold text-sh-text">Settings</h2>
             <button
               onClick={handleClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '1.5rem',
-                cursor: 'pointer',
-                color: '#666',
-                padding: '0.25rem 0.5rem'
-              }}
+              className="bg-transparent border-none text-2xl cursor-pointer text-sh-text-secondary hover:text-sh-text transition-colors p-2 rounded-lg hover:bg-sh-surface"
             >
               ✕
             </button>
           </div>
 
-          <div style={{ 
-            backgroundColor: '#f8f9fa', 
-            padding: '1.5rem', 
-            borderRadius: '8px',
-            marginBottom: '2rem'
-          }}>
-            <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>Folder Paths</h3>
+          <div className="sh-card p-6 mb-6">
+            <h3 className="text-lg font-bold text-sh-text mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5 text-sh-primary" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+              </svg>
+              Folder Paths
+            </h3>
             
             <PathInput
               label="Backup Path"
@@ -182,7 +155,7 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
               onValidationChange={handleBackupValidation}
             />
 
-            <div style={{ marginTop: '1.5rem' }}>
+            <div className="mt-6">
               <PathInput
                 label="Sorted Path"
                 value={sortedPath}
@@ -194,30 +167,21 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
             </div>
 
             {isValidatingPair && (
-              <div style={{
-                padding: '0.75rem',
-                backgroundColor: '#e3f2fd',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-                color: '#1976d2',
-                marginTop: '1rem'
-              }}>
+              <div className="p-3 bg-sh-info/10 border border-sh-info rounded-lg text-sm text-sh-info mt-4">
                 Validating paths...
               </div>
             )}
 
             {pairValidation && !isValidatingPair && (
-              <div style={{
-                padding: '0.75rem',
-                backgroundColor: pairValidation.valid ? '#e8f5e9' : '#ffebee',
-                borderRadius: '4px',
-                fontSize: '0.875rem',
-                marginTop: '1rem'
-              }}>
+              <div className={`p-3 rounded-lg text-sm mt-4 ${
+                pairValidation.valid 
+                  ? 'bg-sh-success/10 border border-sh-success' 
+                  : 'bg-sh-error/10 border border-sh-error'
+              }`}>
                 {pairValidation.errors && pairValidation.errors.length > 0 && (
-                  <div style={{ color: '#c62828', marginBottom: '0.5rem' }}>
+                  <div className="text-sh-error mb-2">
                     <strong>Errors:</strong>
-                    <ul style={{ margin: '0.25rem 0', paddingLeft: '1.5rem' }}>
+                    <ul className="mt-1 pl-6 list-disc">
                       {pairValidation.errors.map((error, idx) => (
                         <li key={idx}>{error}</li>
                       ))}
@@ -225,9 +189,9 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
                   </div>
                 )}
                 {pairValidation.warnings && pairValidation.warnings.length > 0 && (
-                  <div style={{ color: '#f57c00', marginBottom: '0.5rem' }}>
+                  <div className="text-sh-warning mb-2">
                     <strong>Warnings:</strong>
-                    <ul style={{ margin: '0.25rem 0', paddingLeft: '1.5rem' }}>
+                    <ul className="mt-1 pl-6 list-disc">
                       {pairValidation.warnings.map((warning, idx) => (
                         <li key={idx}>{warning}</li>
                       ))}
@@ -235,46 +199,39 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
                   </div>
                 )}
                 {pairValidation.valid && pairValidation.errors.length === 0 && (
-                  <div style={{ color: '#2e7d32' }}>
-                    ✓ Both paths are valid and accessible
+                  <div className="text-sh-success flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Both paths are valid and accessible
                   </div>
                 )}
               </div>
             )}
 
-            <p style={{ fontSize: '0.875rem', color: '#666', marginTop: '1rem', marginBottom: 0 }}>
+            <p className="text-sm text-sh-text-secondary mt-4 leading-relaxed">
               These paths will be scanned recursively for duplicate image files.
             </p>
           </div>
 
-          <div style={{
-            marginBottom: '2rem',
-            padding: '1.5rem',
-            backgroundColor: '#f0f7ff',
-            borderRadius: '8px',
-            border: '1px solid #0066cc'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, color: '#0066cc' }}>Recycle Bin</h3>
+          <div className="sh-card p-6 mb-6 border-l-4 border-sh-accent">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-sh-text flex items-center gap-2">
+                <svg className="w-5 h-5 text-sh-accent" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                Recycle Bin
+              </h3>
               {recycleBinPath && (
                 <button
                   onClick={handleClearRecycleBin}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    fontSize: '0.875rem',
-                    backgroundColor: '#ffa726',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontWeight: '600'
-                  }}
+                  className="sh-button-warning px-4 py-2 text-sm"
                 >
                   Clear
                 </button>
               )}
             </div>
-            <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '1rem' }}>
+            <p className="text-sm text-sh-text-secondary mb-4 leading-relaxed">
               Deleted files will be moved here (not permanently deleted).
             </p>
             <PathInput
@@ -287,82 +244,40 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
             />
           </div>
 
-          <div style={{ 
-            padding: '1rem', 
-            backgroundColor: '#f0f7ff', 
-            borderRadius: '8px',
-            marginBottom: '2rem',
-            border: '1px solid #0066cc'
-          }}>
-            <p style={{ margin: 0, fontSize: '0.875rem', color: '#0066cc', lineHeight: '1.6' }}>
-              💡 <strong>Tip:</strong> Press <kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>?</kbd> to see all keyboard shortcuts
+          <div className="sh-card p-4 mb-6 bg-sh-primary/5 border-sh-primary">
+            <p className="text-sm text-sh-primary leading-relaxed flex items-start gap-2">
+              <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <span><strong>Tip:</strong> Press <kbd className="sh-kbd text-xs mx-1">?</kbd> to see all keyboard shortcuts</span>
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem' }}>
+          <div className="flex gap-3">
             <button
               onClick={handleSave}
               disabled={!canSave}
-              style={{
-                flex: 1,
-                padding: '0.75rem 2rem',
-                fontSize: '1rem',
-                backgroundColor: canSave ? '#0066cc' : '#ccc',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: canSave ? 'pointer' : 'not-allowed',
-                fontWeight: '600'
-              }}
+              className="sh-button-primary flex-1"
             >
               Save Settings
             </button>
             <button
               onClick={handleClose}
-              style={{
-                padding: '0.75rem 2rem',
-                fontSize: '1rem',
-                backgroundColor: '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: '600'
-              }}
+              className="sh-button-secondary px-6"
             >
               Cancel
             </button>
           </div>
 
           {!canSave && (
-            <p style={{ color: '#d32f2f', marginTop: '1rem', fontSize: '0.875rem' }}>
+            <p className="text-sh-error mt-4 text-sm">
               Please enter and validate all paths to save.
             </p>
           )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes fadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; }
-        }
-        @keyframes slideInRight {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-        @keyframes slideOutRight {
-          from { transform: translateX(0); }
-          to { transform: translateX(100%); }
-        }
-      `}</style>
     </>
   )
 }
 
 export default SettingsSidebar
-

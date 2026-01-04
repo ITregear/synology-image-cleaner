@@ -9,7 +9,7 @@ function ReviewScreen() {
   const [activeTab, setActiveTab] = useState('duplicated')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [duplicatePairs, setDuplicatePairs] = useState([])
-  const [allPairs, setAllPairs] = useState([]) // Keep all pairs for filtering
+  const [allPairs, setAllPairs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [stats, setStats] = useState(null)
@@ -36,7 +36,6 @@ function ReviewScreen() {
         setDuplicatePairs([])
         setAllPairs([])
       } else {
-        // Transform pairs and filter out reviewed ones
         const pairs = (data.pairs || []).map(pair => ({
           backup_path: pair.backup_path,
           sorted_path: pair.sorted_path,
@@ -45,13 +44,11 @@ function ReviewScreen() {
           action: pair.action
         }))
         setAllPairs(pairs)
-        // Only show unreviewed pairs
         const unreviewed = pairs.filter(p => !p.reviewed)
         setDuplicatePairs(unreviewed)
         setCurrentIndex(0)
       }
       
-      // Load stats
       await loadStats()
     } catch (err) {
       setError('Failed to load duplicates: ' + err.message)
@@ -92,11 +89,9 @@ function ReviewScreen() {
         throw new Error('Failed to ignore duplicate')
       }
       
-      // Remove from current list and move to next
       const newPairs = duplicatePairs.filter((_, idx) => idx !== currentIndex)
       setDuplicatePairs(newPairs)
       
-      // Adjust index if needed
       if (currentIndex >= newPairs.length && newPairs.length > 0) {
         setCurrentIndex(newPairs.length - 1)
       }
@@ -131,11 +126,9 @@ function ReviewScreen() {
         throw new Error(data.detail || 'Failed to delete duplicate')
       }
       
-      // Remove from current list and move to next
       const newPairs = duplicatePairs.filter((_, idx) => idx !== currentIndex)
       setDuplicatePairs(newPairs)
       
-      // Adjust index if needed
       if (currentIndex >= newPairs.length && newPairs.length > 0) {
         setCurrentIndex(newPairs.length - 1)
       }
@@ -166,7 +159,6 @@ function ReviewScreen() {
         throw new Error(data.detail || 'Nothing to undo')
       }
       
-      // Reload duplicates to reflect the undone action
       await loadDuplicates()
     } catch (err) {
       alert('Error undoing: ' + err.message)
@@ -216,374 +208,269 @@ function ReviewScreen() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        <h2>Review Duplicates</h2>
-        <p>Loading duplicates...</p>
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-spin">
+            <svg className="w-16 h-16 mx-auto text-sh-primary" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <p className="text-lg text-sh-text-secondary">Loading duplicates...</p>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div style={{ maxWidth: '1400px', margin: '0 auto', color: '#c62828' }}>
-        <h2>Error</h2>
-        <p>Failed to load duplicates: {error}</p>
-        <button onClick={() => navigate('/scan')} style={{ padding: '0.5rem 1rem', cursor: 'pointer' }}>
-          Back to Scan
-        </button>
+      <div className="max-w-3xl mx-auto px-8 py-12">
+        <div className="sh-card p-8 bg-sh-error/10 border-sh-error text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-sh-error mb-2">Error</h2>
+          <p className="text-sh-text-secondary mb-6">Failed to load duplicates: {error}</p>
+          <button onClick={() => navigate('/scan')} className="sh-button-secondary">
+            Back to Scan
+          </button>
+        </div>
       </div>
     )
   }
 
   if (duplicatePairs.length === 0) {
     return (
-      <div style={{ maxWidth: '1400px', margin: '0 auto', textAlign: 'center', padding: '4rem 2rem', backgroundColor: '#f0f7ff', borderRadius: '12px', border: '2px solid #0066cc' }}>
-        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
-        <h2 style={{ color: '#0066cc', fontSize: '2rem', marginBottom: '1rem' }}>Inbox Zero!</h2>
-        <p style={{ color: '#666', fontSize: '1.125rem', marginBottom: '2rem' }}>
-          All duplicates have been reviewed.
-        </p>
-        {stats && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '2rem', fontSize: '1rem' }}>
-            <div>
-              <div style={{ fontWeight: '600', color: '#0066cc' }}>{stats.deleted}</div>
-              <div style={{ color: '#666', fontSize: '0.875rem' }}>Deleted</div>
+      <div className="max-w-4xl mx-auto px-8 py-12">
+        <div className="sh-card p-16 text-center border-4 border-sh-primary bg-sh-primary/5 animate-scale-in">
+          <div className="text-7xl mb-6">🎉</div>
+          <h2 className="text-4xl font-bold text-sh-primary mb-4">Inbox Zero!</h2>
+          <p className="text-sh-text-secondary text-xl mb-8 leading-relaxed">
+            All duplicates have been reviewed.<br />Great work!
+          </p>
+          {stats && (
+            <div className="flex justify-center gap-12 mb-8 p-8 sh-card bg-sh-bg-tertiary max-w-2xl mx-auto">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-sh-error mb-2">{stats.deleted}</div>
+                <div className="text-sm text-sh-text-secondary font-semibold uppercase tracking-wide">Deleted</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-sh-warning mb-2">{stats.ignored}</div>
+                <div className="text-sm text-sh-text-secondary font-semibold uppercase tracking-wide">Ignored</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-sh-primary mb-2">{stats.total}</div>
+                <div className="text-sm text-sh-text-secondary font-semibold uppercase tracking-wide">Total Reviewed</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontWeight: '600', color: '#0066cc' }}>{stats.ignored}</div>
-              <div style={{ color: '#666', fontSize: '0.875rem' }}>Ignored</div>
-            </div>
-            <div>
-              <div style={{ fontWeight: '600', color: '#0066cc' }}>{stats.total}</div>
-              <div style={{ color: '#666', fontSize: '0.875rem' }}>Total Reviewed</div>
-            </div>
-          </div>
-        )}
-        <button 
-          onClick={() => navigate('/scan')} 
-          style={{ 
-            padding: '0.75rem 2rem', 
-            fontSize: '1rem',
-            backgroundColor: '#0066cc',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          Back to Scan
-        </button>
+          )}
+          <button 
+            onClick={() => navigate('/scan')} 
+            className="sh-button-primary text-lg py-4 px-8"
+          >
+            Back to Scan
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div ref={containerRef} style={{ maxWidth: '1400px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e0e0e0', paddingBottom: '1rem' }}>
-        <h2 style={{ margin: 0 }}>Review Duplicates</h2>
+    <div ref={containerRef} className="max-w-7xl mx-auto px-8 py-8">
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold text-sh-text">Review Duplicates</h1>
+          <div className="text-2xl font-bold text-sh-primary tabular-nums">
+            {currentIndex + 1} / {totalPairs}
+          </div>
+        </div>
         {backupPath && sortedPath && (
-          <>
-            <p style={{ color: '#666', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-              Backup: <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{backupPath}</span>
-            </p>
-            <p style={{ fontSize: '0.875rem', color: '#999', fontFamily: 'monospace', margin: 0 }}>
-              Sorted: {sortedPath}
-            </p>
-          </>
+          <div className="text-sm text-sh-text-muted space-y-1">
+            <div className="font-mono">
+              <span className="text-sh-text-dim">Backup:</span> {backupPath}
+            </div>
+            <div className="font-mono">
+              <span className="text-sh-text-dim">Sorted:</span> {sortedPath}
+            </div>
+          </div>
         )}
       </div>
 
-      <div style={{ display: 'flex', borderBottom: '1px solid #e0e0e0', marginBottom: '2rem' }}>
+      <div className="flex border-b-2 border-sh-border mb-8">
         <button
           onClick={() => setActiveTab('duplicated')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            border: 'none',
-            borderBottom: activeTab === 'duplicated' ? '2px solid #0066cc' : 'none',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: activeTab === 'duplicated' ? '600' : '400',
-            color: activeTab === 'duplicated' ? '#0066cc' : '#666',
-          }}
+          className={`px-6 py-4 border-none bg-transparent text-lg font-semibold transition-all duration-200 relative ${
+            activeTab === 'duplicated' 
+              ? 'text-sh-primary' 
+              : 'text-sh-text-muted hover:text-sh-text'
+          }`}
         >
           Duplicated Photos ({totalPairs})
+          {activeTab === 'duplicated' && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-sh-primary rounded-t-full shadow-sh-glow"></div>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('missing')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            border: 'none',
-            borderBottom: activeTab === 'missing' ? '2px solid #0066cc' : 'none',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: activeTab === 'missing' ? '600' : '400',
-            color: activeTab === 'missing' ? '#0066cc' : '#666',
-          }}
+          className={`px-6 py-4 border-none bg-transparent text-lg font-semibold transition-all duration-200 relative ${
+            activeTab === 'missing' 
+              ? 'text-sh-primary' 
+              : 'text-sh-text-muted hover:text-sh-text'
+          }`}
         >
           Missing Photos (Coming Soon)
+          {activeTab === 'missing' && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-sh-primary rounded-t-full shadow-sh-glow"></div>
+          )}
         </button>
       </div>
 
       {activeTab === 'duplicated' && (
         <>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center',
-            marginBottom: '2rem'
-          }}>
-            <h3 style={{ margin: 0 }}>Reviewing Duplicates</h3>
-            <div style={{ 
-              fontSize: '1.125rem', 
-              fontWeight: '600',
-              color: '#666'
-            }}>
-              {currentIndex + 1} / {totalPairs}
-            </div>
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '2rem',
-            marginBottom: '2rem'
-          }}>
-            <div style={{
-              border: '2px solid #e0e0e0',
-              borderRadius: '8px',
-              padding: '1.5rem',
-              backgroundColor: '#fff3cd'
-            }}>
-              <h4 style={{ marginTop: 0, color: '#856404' }}>Backup Copy</h4>
-              <div style={{
-                width: '100%',
-                height: '400px',
-                backgroundColor: '#f8f9fa',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                marginBottom: '1rem',
-                border: '1px solid #e0e0e0',
-                overflow: 'hidden'
-              }}>
+          <div className="grid grid-cols-2 gap-6 mb-8">
+            <div className="sh-card p-6 border-l-4 border-sh-warning bg-sh-warning/5">
+              <h3 className="flex items-center justify-between text-lg font-bold text-sh-warning mb-4">
+                <span className="flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+                    <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+                  </svg>
+                  Backup Copy
+                </span>
+              </h3>
+              <div className="w-full aspect-[4/3] bg-sh-bg flex items-center justify-center rounded-lg mb-4 border-2 border-sh-border overflow-hidden shadow-sh">
                 {currentPair?.backup_path ? (
                   <img
                     src={`/api/thumb?path=${encodeURIComponent(currentPair.backup_path)}`}
-                    alt="Backup Thumbnail"
-                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                    alt="Backup"
+                    className="max-w-full max-h-full object-contain"
                   />
                 ) : (
-                  <span style={{ color: '#999' }}>No Backup Image</span>
+                  <span className="text-sh-text-muted">No image</span>
                 )}
               </div>
-              <div style={{
-                fontSize: '0.875rem',
-                fontFamily: 'monospace',
-                color: '#666',
-                wordBreak: 'break-all',
-                padding: '0.75rem',
-                backgroundColor: '#f8f9fa',
-                borderRadius: '4px'
-              }}>
+              <div className="text-xs font-mono text-sh-text-secondary break-all p-3 bg-sh-bg-tertiary rounded-lg border border-sh-border">
                 {currentPair?.backup_path || 'N/A'}
               </div>
             </div>
 
-            <div style={{
-              border: '2px solid #e0e0e0',
-              borderRadius: '8px',
-              padding: '1.5rem',
-              backgroundColor: '#d1ecf1'
-            }}>
-              <h4 style={{ marginTop: 0, color: '#0c5460' }}>Kept Copy</h4>
-              <div style={{
-                width: '100%',
-                height: '400px',
-                backgroundColor: '#f8f9fa',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                marginBottom: '1rem',
-                border: '1px solid #e0e0e0',
-                overflow: 'hidden'
-              }}>
+            <div className="sh-card p-6 border-l-4 border-sh-info bg-sh-info/5">
+              <h3 className="flex items-center justify-between text-lg font-bold text-sh-info mb-4">
+                <span className="flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Kept Copy
+                </span>
+              </h3>
+              <div className="w-full aspect-[4/3] bg-sh-bg flex items-center justify-center rounded-lg mb-4 border-2 border-sh-border overflow-hidden shadow-sh">
                 {currentPair?.sorted_path ? (
                   <img
                     src={`/api/thumb?path=${encodeURIComponent(currentPair.sorted_path)}`}
-                    alt="Kept Thumbnail"
-                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                    alt="Kept"
+                    className="max-w-full max-h-full object-contain"
                   />
                 ) : (
-                  <span style={{ color: '#999' }}>No Kept Image</span>
+                  <span className="text-sh-text-muted">No image</span>
                 )}
               </div>
-              <div style={{
-                fontSize: '0.875rem',
-                fontFamily: 'monospace',
-                color: '#666',
-                wordBreak: 'break-all',
-                padding: '0.75rem',
-                backgroundColor: '#f8f9fa',
-                borderRadius: '4px'
-              }}>
+              <div className="text-xs font-mono text-sh-text-secondary break-all p-3 bg-sh-bg-tertiary rounded-lg border border-sh-border">
                 {currentPair?.sorted_path || 'N/A'}
               </div>
             </div>
           </div>
 
-          <div style={{
-            display: 'flex',
-            gap: '1rem',
-            justifyContent: 'center',
-            padding: '1.5rem',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '8px',
-            alignItems: 'center'
-          }}>
-            <button
-              onClick={handlePrevious}
-              disabled={currentIndex === 0}
-              style={{
-                padding: '0.75rem 2rem',
-                fontSize: '1rem',
-                backgroundColor: currentIndex === 0 ? '#ccc' : '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: currentIndex === 0 ? 'not-allowed' : 'pointer',
-                fontWeight: '600'
-              }}
-            >
-              ← Previous
-            </button>
-            <button
-              onClick={handleIgnore}
-              disabled={actionInProgress}
-              style={{
-                padding: '0.75rem 2rem',
-                fontSize: '1rem',
-                backgroundColor: actionInProgress ? '#ccc' : '#ffa726',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: actionInProgress ? 'not-allowed' : 'pointer',
-                fontWeight: '600'
-              }}
-            >
-              Ignore (E)
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={actionInProgress}
-              style={{
-                padding: '0.75rem 2rem',
-                fontSize: '1rem',
-                backgroundColor: actionInProgress ? '#ccc' : '#d32f2f',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: actionInProgress ? 'not-allowed' : 'pointer',
-                fontWeight: '600'
-              }}
-            >
-              Delete (D)
-            </button>
-            <button
-              onClick={handleNext}
-              disabled={currentIndex >= totalPairs - 1}
-              style={{
-                padding: '0.75rem 2rem',
-                fontSize: '1rem',
-                backgroundColor: currentIndex >= totalPairs - 1 ? '#ccc' : '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: currentIndex >= totalPairs - 1 ? 'not-allowed' : 'pointer',
-                fontWeight: '600'
-              }}
-            >
-              Next →
-            </button>
-            <div style={{ borderLeft: '2px solid #ddd', height: '40px', margin: '0 0.5rem' }}></div>
-            <button
-              onClick={handleUndo}
-              disabled={actionInProgress}
-              style={{
-                padding: '0.75rem 2rem',
-                fontSize: '1rem',
-                backgroundColor: actionInProgress ? '#ccc' : '#0066cc',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: actionInProgress ? 'not-allowed' : 'pointer',
-                fontWeight: '600'
-              }}
-            >
-              Undo (Ctrl+Z)
-            </button>
+          <div className="sh-card p-6 mb-6">
+            <div className="flex items-center justify-between gap-6 flex-wrap">
+              <div className="flex gap-3">
+                <button
+                  onClick={handlePrevious}
+                  disabled={currentIndex === 0}
+                  className="sh-button-ghost disabled:opacity-30"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={currentIndex >= totalPairs - 1}
+                  className="sh-button-ghost disabled:opacity-30"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  onClick={handleIgnore}
+                  disabled={actionInProgress}
+                  className="sh-button-warning min-w-[140px] flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
+                  </svg>
+                  Ignore
+                  <kbd className="sh-kbd ml-1">E</kbd>
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={actionInProgress}
+                  className="sh-button-danger min-w-[140px] flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  Delete
+                  <kbd className="sh-kbd ml-1">D</kbd>
+                </button>
+                <button
+                  onClick={handleUndo}
+                  disabled={actionInProgress}
+                  className="sh-button-secondary min-w-[140px] flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a2 2 0 012 2v4a1 1 0 11-2 0v-4H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                  </svg>
+                  Undo
+                  <kbd className="sh-kbd ml-1">⌘Z</kbd>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div style={{
-            marginTop: '2rem',
-            padding: '1rem',
-            backgroundColor: '#e9ecef',
-            borderRadius: '4px',
-            fontSize: '0.875rem'
-          }}>
-            <strong>Keyboard Shortcuts:</strong>
-            <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
-              <li><strong>ArrowLeft / ArrowRight</strong> - Navigate between duplicates</li>
-              <li><strong>E</strong> - Ignore this duplicate (won't show again)</li>
-              <li><strong>D</strong> - Delete backup copy (moves to recycle bin)</li>
-              <li><strong>Ctrl+Z / Cmd+Z</strong> - Undo last action</li>
-            </ul>
-          </div>
-          
           {stats && (
-            <div style={{
-              marginTop: '1.5rem',
-              padding: '1rem',
-              backgroundColor: '#f0f7ff',
-              borderRadius: '4px',
-              display: 'flex',
-              justifyContent: 'space-around',
-              fontSize: '0.875rem'
-            }}>
-              <div>
-                <div style={{ fontWeight: '600', fontSize: '1.25rem', color: '#0066cc' }}>{stats.remaining}</div>
-                <div style={{ color: '#666' }}>Remaining</div>
-              </div>
-              <div>
-                <div style={{ fontWeight: '600', fontSize: '1.25rem', color: '#d32f2f' }}>{stats.deleted}</div>
-                <div style={{ color: '#666' }}>Deleted</div>
-              </div>
-              <div>
-                <div style={{ fontWeight: '600', fontSize: '1.25rem', color: '#ffa726' }}>{stats.ignored}</div>
-                <div style={{ color: '#666' }}>Ignored</div>
-              </div>
-              <div>
-                <div style={{ fontWeight: '600', fontSize: '1.25rem', color: '#666' }}>{stats.reviewed} / {stats.total}</div>
-                <div style={{ color: '#666' }}>Progress</div>
-              </div>
+            <div className="sh-card p-6 flex justify-around items-center gap-8">
+              <StatDisplay label="Remaining" value={stats.remaining} color="text-sh-primary" />
+              <div className="h-12 w-px bg-sh-border"></div>
+              <StatDisplay label="Reviewed" value={stats.reviewed} color="text-sh-text-secondary" />
+              <div className="h-12 w-px bg-sh-border"></div>
+              <StatDisplay label="Deleted" value={stats.deleted} color="text-sh-error" />
+              <div className="h-12 w-px bg-sh-border"></div>
+              <StatDisplay label="Ignored" value={stats.ignored} color="text-sh-warning" />
             </div>
           )}
         </>
       )}
 
       {activeTab === 'missing' && (
-        <div style={{ padding: '2rem', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center', color: '#666' }}>
-          <h3>Missing Photos</h3>
-          <p>This feature is coming soon!</p>
+        <div className="py-24 text-center">
+          <div className="text-7xl mb-6">🔜</div>
+          <h2 className="text-3xl font-bold text-sh-text mb-4">Missing Photos</h2>
+          <p className="text-sh-text-secondary text-lg">This feature is coming soon!</p>
         </div>
       )}
     </div>
   )
 }
 
-export default ReviewScreen
+function StatDisplay({ label, value, color }) {
+  return (
+    <div className="text-center">
+      <div className={`text-4xl font-bold ${color} mb-2 tabular-nums`}>{value || 0}</div>
+      <div className="text-sm text-sh-text-secondary font-semibold uppercase tracking-wide">{label}</div>
+    </div>
+  )
+}
 
+export default ReviewScreen

@@ -41,6 +41,39 @@ def ignore_duplicate(review_id: int, backup_path: str, sorted_path: str) -> Tupl
     finally:
         conn.close()
 
+def unignore_duplicate(review_id: int, backup_path: str, sorted_path: str) -> Tuple[bool, Optional[str]]:
+    """
+    Unignore a previously ignored duplicate pair, returning it to the review queue.
+    """
+    db_path = os.path.join(Config.LOCAL_STATE_DIR, "state.db")
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    try:
+        # Mark as not reviewed
+        cursor.execute("""
+            UPDATE review_queue 
+            SET reviewed = 0, action = NULL
+            WHERE id = ?
+        """, (review_id,))
+        
+        # Remove from ignored_pairs table
+        cursor.execute("""
+            DELETE FROM ignored_pairs 
+            WHERE backup_path = ? AND sorted_path = ?
+        """, (backup_path, sorted_path))
+        
+        conn.commit()
+        logger.info(f"Unignored duplicate: {backup_path}")
+        return True, None
+        
+    except Exception as e:
+        conn.rollback()
+        logger.exception(f"Error unignoring duplicate: {e}")
+        return False, str(e)
+    finally:
+        conn.close()
+
 def delete_duplicate(review_id: int, backup_path: str, session_id: str, recycle_bin_path: Optional[str] = None) -> Tuple[bool, Optional[str], Optional[Dict]]:
     """
     Delete a duplicate by moving it to the recycle bin.
