@@ -1,14 +1,22 @@
-# Synology Duplicate-Review Web App
+# Synology Image Cleaner
 
-Web app for reviewing and cleaning up duplicate images on Synology NAS using Storage Analyzer reports. Works entirely over SSH/SFTP (no local mounts required).
+A keyboard-driven web app for reviewing and cleaning up duplicate images on Synology NAS. Inspired by Superhuman's efficient, hotkey-focused interface. Works entirely over SSH/SFTP (no local mounts required).
 
 ## Overview
 
 This app helps you:
-- Review duplicate files identified by Synology Storage Analyzer
+- Review duplicate files with a fast, keyboard-driven workflow
 - Compare backup copies vs. sorted copies side-by-side
 - Safely remove duplicates by moving them to recycle bin (non-destructive)
+- Achieve "Inbox Zero" for your duplicate images
 - Work from any machine with SSH access to your NAS
+
+### Key Features
+
+- **Keyboard-First Interface**: Navigate and review duplicates without touching your mouse
+- **Single-Page Design**: Everything accessible from one unified inbox view
+- **Real-time Feedback**: Instant visual indicators for actions and selections
+- **Settings Sidebar**: Quick access to configuration without leaving your workflow
 
 ## Safety Features
 
@@ -99,6 +107,30 @@ Optional:
 
 3. **Open browser:**
    Navigate to `http://localhost:5173`
+
+## Usage
+
+### Keyboard Shortcuts
+
+The app is designed for keyboard-driven efficiency:
+
+- `S` - Open settings sidebar
+- `K` - Start a new scan
+- `C` - Cycle between Duplicates/Missing tabs
+- `←/→` - Cycle between backup and kept images
+- `E` - Ignore/mark as done (won't show again)
+- `D` - Delete backup copy (moves to recycle bin)
+- `⌘Z / Ctrl+Z` - Undo last action
+- `?` - Show keyboard shortcuts help
+- `Esc` - Close modals/sidebars
+
+### Workflow
+
+1. **First Time Setup**: Press `S` to open settings and configure your paths
+2. **Scan for Duplicates**: Press `K` to initiate a scan
+3. **Review**: Use arrow keys to cycle between images, press `E` to ignore or `D` to delete
+4. **Achieve Inbox Zero**: Clear all duplicates and celebrate! 🎉
+5. **Scan Again**: Press `K` anytime to run a new scan
 
 ### Production Build
 

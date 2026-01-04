@@ -1,7 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import ConnectScreen from './screens/ConnectScreen'
-import ScanScreen from './screens/ScanScreen'
-import ReviewScreen from './screens/ReviewScreen'
+import InboxScreen from './screens/InboxScreen'
 import Layout from './components/Layout'
 import './index.css'
 
@@ -10,10 +8,8 @@ function App() {
     <Router>
       <Layout>
         <Routes>
-          <Route path="/" element={<Navigate to="/connect" replace />} />
-          <Route path="/connect" element={<ConnectScreen />} />
-          <Route path="/scan" element={<ScanScreen />} />
-          <Route path="/review" element={<ReviewScreen />} />
+          <Route path="/" element={<InboxScreen />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
     </Router>
