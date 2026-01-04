@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import PathInput from './PathInput'
 
 function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
@@ -10,6 +10,7 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
   const [recycleBinValid, setRecycleBinValid] = useState(false)
   const [pairValidation, setPairValidation] = useState(null)
   const [isValidatingPair, setIsValidatingPair] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
 
   useEffect(() => {
     const storedBackupPath = localStorage.getItem('backupPath') || ''
@@ -49,7 +50,17 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
     return () => clearTimeout(timer)
   }, [backupPath, sortedPath, backupValid, sortedValid])
 
-  const handleSave = () => {
+  const canSave = backupValid && sortedValid && recycleBinValid && 
+                  pairValidation?.valid && !isValidatingPair
+
+  const handleClose = useCallback(() => {
+    setIsClosing(true)
+    setTimeout(() => {
+      onClose()
+    }, 300)
+  }, [onClose])
+
+  const handleSave = useCallback(() => {
     if (!canSave) return
     
     localStorage.setItem('backupPath', backupPath)
@@ -64,8 +75,8 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
       })
     }
     
-    onClose()
-  }
+    handleClose()
+  }, [canSave, backupPath, sortedPath, recycleBinPath, onSettingsChange, handleClose])
 
   const handleClearRecycleBin = () => {
     setRecycleBinPath('')
@@ -84,26 +95,34 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
     setRecycleBinValid(isValid)
   }
 
-  const canSave = backupValid && sortedValid && recycleBinValid && 
-                  pairValidation?.valid && !isValidatingPair
+  useEffect(() => {
+    if (isOpen) {
+      setIsClosing(false)
+    }
+  }, [isOpen])
 
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (isOpen && e.key === 'Escape') {
-        onClose()
+      if (!isOpen || isClosing) return
+      
+      if (e.key === 'Escape') {
+        handleClose()
+      } else if ((e.key === 's' || e.key === 'S') && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault()
+        handleSave()
       }
     }
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isOpen, onClose])
+  }, [isOpen, isClosing, handleClose, handleSave])
 
-  if (!isOpen) return null
+  if (!isOpen && !isClosing) return null
 
   return (
     <>
       <div 
-        onClick={onClose}
+        onClick={handleClose}
         style={{
           position: 'fixed',
           top: 0,
@@ -112,7 +131,7 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
           zIndex: 999,
-          animation: 'fadeIn 0.2s ease-in-out'
+          animation: isClosing ? 'fadeOut 0.2s ease-in-out' : 'fadeIn 0.2s ease-in-out'
         }}
       />
       
@@ -126,13 +145,13 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
         boxShadow: '-4px 0 12px rgba(0, 0, 0, 0.15)',
         zIndex: 1000,
         overflowY: 'auto',
-        animation: 'slideInRight 0.3s ease-in-out'
+        animation: isClosing ? 'slideOutRight 0.3s ease-in-out' : 'slideInRight 0.3s ease-in-out'
       }}>
         <div style={{ padding: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
             <h2 style={{ margin: 0, fontSize: '1.5rem' }}>Settings</h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 background: 'none',
                 border: 'none',
@@ -268,24 +287,16 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
             />
           </div>
 
-          <div style={{
-            padding: '1rem',
-            backgroundColor: '#e9ecef',
+          <div style={{ 
+            padding: '1rem', 
+            backgroundColor: '#f0f7ff', 
             borderRadius: '8px',
-            fontSize: '0.875rem',
-            marginBottom: '2rem'
+            marginBottom: '2rem',
+            border: '1px solid #0066cc'
           }}>
-            <strong>Keyboard Shortcuts:</strong>
-            <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
-              <li><kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>S</kbd> - Toggle settings</li>
-              <li><kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>K</kbd> - Start scan</li>
-              <li><kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>C</kbd> - Cycle tabs</li>
-              <li><kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>E</kbd> - Ignore duplicate</li>
-              <li><kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>D</kbd> - Delete duplicate</li>
-              <li><kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>←/→</kbd> - Navigate images</li>
-              <li><kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>⌘Z</kbd> - Undo</li>
-              <li><kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>Esc</kbd> - Close settings</li>
-            </ul>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: '#0066cc', lineHeight: '1.6' }}>
+              💡 <strong>Tip:</strong> Press <kbd style={{ padding: '0.125rem 0.375rem', backgroundColor: '#fff', borderRadius: '3px', border: '1px solid #ccc' }}>?</kbd> to see all keyboard shortcuts
+            </p>
           </div>
 
           <div style={{ display: 'flex', gap: '1rem' }}>
@@ -307,7 +318,7 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
               Save Settings
             </button>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 padding: '0.75rem 2rem',
                 fontSize: '1rem',
@@ -336,9 +347,17 @@ function SettingsSidebar({ isOpen, onClose, onSettingsChange }) {
           from { opacity: 0; }
           to { opacity: 1; }
         }
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
         @keyframes slideInRight {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); }
+          to { transform: translateX(100%); }
         }
       `}</style>
     </>

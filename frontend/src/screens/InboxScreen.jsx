@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import SettingsSidebar from '../components/SettingsSidebar'
+import HelpSidebar from '../components/HelpSidebar'
+import StatsSidebar from '../components/StatsSidebar'
 
 function InboxScreen() {
   const [activeTab, setActiveTab] = useState('duplicates')
@@ -249,17 +251,29 @@ function InboxScreen() {
         return
       }
 
-      if (e.key === '?') {
+      if (e.key === 'Escape') {
         e.preventDefault()
-        setShowHelp(prev => !prev)
-      } else if (e.key === 'Escape') {
         if (showHelp) {
-          e.preventDefault()
           setShowHelp(false)
+        } else if (settingsOpen) {
+          setSettingsOpen(false)
+        }
+      } else if (e.key === '?') {
+        e.preventDefault()
+        if (settingsOpen) {
+          setSettingsOpen(false)
+          setTimeout(() => setShowHelp(true), 300)
+        } else {
+          setShowHelp(prev => !prev)
         }
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault()
-        setSettingsOpen(prev => !prev)
+        if (showHelp) {
+          setShowHelp(false)
+          setTimeout(() => setSettingsOpen(true), 300)
+        } else if (!settingsOpen) {
+          setSettingsOpen(true)
+        }
       } else if (e.key === 'k' || e.key === 'K') {
         e.preventDefault()
         handleScan()
@@ -293,12 +307,22 @@ function InboxScreen() {
   if (loading && !duplicatePairs.length) {
     return (
       <>
+        <StatsSidebar 
+          stats={stats}
+          scanSessionId={scanSessionId}
+          isScanning={false}
+          hasSettings={hasSettings}
+        />
         <SettingsSidebar
           isOpen={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           onSettingsChange={handleSettingsChange}
         />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+        <HelpSidebar
+          isOpen={showHelp}
+          onClose={() => setShowHelp(false)}
+        />
+        <div style={{ marginLeft: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ 
               fontSize: '3rem', 
@@ -321,12 +345,22 @@ function InboxScreen() {
   if (!hasSettings && !scanning) {
     return (
       <>
+        <StatsSidebar 
+          stats={stats}
+          scanSessionId={scanSessionId}
+          isScanning={scanning}
+          hasSettings={hasSettings}
+        />
         <SettingsSidebar
           isOpen={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           onSettingsChange={handleSettingsChange}
         />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+        <HelpSidebar
+          isOpen={showHelp}
+          onClose={() => setShowHelp(false)}
+        />
+        <div style={{ marginLeft: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
           <div style={{ 
             textAlign: 'center', 
             maxWidth: '700px', 
@@ -379,12 +413,22 @@ function InboxScreen() {
   if (scanning) {
     return (
       <>
+        <StatsSidebar 
+          stats={stats}
+          scanSessionId={scanSessionId}
+          isScanning={scanning}
+          hasSettings={hasSettings}
+        />
         <SettingsSidebar
           isOpen={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           onSettingsChange={handleSettingsChange}
         />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+        <HelpSidebar
+          isOpen={showHelp}
+          onClose={() => setShowHelp(false)}
+        />
+        <div style={{ marginLeft: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
           <div style={{ 
             textAlign: 'center', 
             maxWidth: '600px', 
@@ -426,18 +470,47 @@ function InboxScreen() {
   if (duplicatePairs.length === 0 && scanSessionId) {
     return (
       <>
+        <StatsSidebar 
+          stats={stats}
+          scanSessionId={scanSessionId}
+          isScanning={scanning}
+          hasSettings={hasSettings}
+        />
         <SettingsSidebar
           isOpen={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           onSettingsChange={handleSettingsChange}
         />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-          <div style={{ textAlign: 'center', maxWidth: '700px', padding: '4rem', backgroundColor: '#f0f7ff', borderRadius: '16px', border: '3px solid #0066cc' }}>
-            <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🎉</div>
-            <h2 style={{ color: '#0066cc', fontSize: '2.5rem', marginBottom: '1rem', fontWeight: '700' }}>Inbox Zero!</h2>
-            <p style={{ color: '#666', fontSize: '1.25rem', marginBottom: '2.5rem', lineHeight: '1.6' }}>
-              All duplicates have been reviewed.<br />Great work!
-            </p>
+        <HelpSidebar
+          isOpen={showHelp}
+          onClose={() => setShowHelp(false)}
+        />
+        <div style={{ marginLeft: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+          {stats && stats.total === 0 ? (
+            <div style={{ textAlign: 'center', maxWidth: '700px', padding: '4rem', backgroundColor: '#e8f5e9', borderRadius: '16px', border: '3px solid #4caf50' }}>
+              <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>✨</div>
+              <h2 style={{ color: '#2e7d32', fontSize: '2.5rem', marginBottom: '1rem', fontWeight: '700' }}>All Clean!</h2>
+              <p style={{ color: '#666', fontSize: '1.25rem', marginBottom: '2.5rem', lineHeight: '1.6' }}>
+                No duplicate images found between your backup and sorted folders.
+              </p>
+              <div style={{
+                padding: '1rem 2rem',
+                backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                borderRadius: '8px',
+                display: 'inline-block'
+              }}>
+                <p style={{ color: '#2e7d32', fontSize: '1rem', margin: 0, fontWeight: '600' }}>
+                  Press <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', fontFamily: 'monospace', border: '2px solid #4caf50', marginLeft: '0.5rem', marginRight: '0.5rem' }}>K</kbd> to scan again
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', maxWidth: '700px', padding: '4rem', backgroundColor: '#f0f7ff', borderRadius: '16px', border: '3px solid #0066cc' }}>
+              <div style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>🎉</div>
+              <h2 style={{ color: '#0066cc', fontSize: '2.5rem', marginBottom: '1rem', fontWeight: '700' }}>Inbox Zero!</h2>
+              <p style={{ color: '#666', fontSize: '1.25rem', marginBottom: '2.5rem', lineHeight: '1.6' }}>
+                All duplicates have been reviewed.<br />Great work!
+              </p>
             {stats && (
               <div style={{ 
                 display: 'flex', 
@@ -462,17 +535,18 @@ function InboxScreen() {
                 </div>
               </div>
             )}
-            <div style={{
-              padding: '1rem 2rem',
-              backgroundColor: 'rgba(0, 102, 204, 0.1)',
-              borderRadius: '8px',
-              display: 'inline-block'
-            }}>
-              <p style={{ color: '#0066cc', fontSize: '1rem', margin: 0, fontWeight: '600' }}>
-                Press <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', fontFamily: 'monospace', border: '2px solid #0066cc', marginLeft: '0.5rem', marginRight: '0.5rem' }}>K</kbd> to scan again
-              </p>
+              <div style={{
+                padding: '1rem 2rem',
+                backgroundColor: 'rgba(0, 102, 204, 0.1)',
+                borderRadius: '8px',
+                display: 'inline-block'
+              }}>
+                <p style={{ color: '#0066cc', fontSize: '1rem', margin: 0, fontWeight: '600' }}>
+                  Press <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', fontFamily: 'monospace', border: '2px solid #0066cc', marginLeft: '0.5rem', marginRight: '0.5rem' }}>K</kbd> to scan again
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </>
     )
@@ -480,101 +554,25 @@ function InboxScreen() {
 
   return (
     <>
+      <StatsSidebar 
+        stats={stats}
+        scanSessionId={scanSessionId}
+        isScanning={scanning}
+        hasSettings={hasSettings}
+      />
+      
       <SettingsSidebar
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onSettingsChange={handleSettingsChange}
       />
       
-      {showHelp && (
-        <>
-          <div 
-            onClick={() => setShowHelp(false)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              zIndex: 9999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <div 
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                backgroundColor: 'white',
-                padding: '2.5rem',
-                borderRadius: '12px',
-                maxWidth: '600px',
-                width: '90%',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h2 style={{ margin: 0, fontSize: '1.75rem' }}>Keyboard Shortcuts</h2>
-                <button
-                  onClick={() => setShowHelp(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '1.5rem',
-                    cursor: 'pointer',
-                    color: '#666',
-                    padding: '0.25rem 0.5rem'
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-              
-              <div style={{ display: 'grid', gap: '1rem', fontSize: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                  <span>Cycle between images</span>
-                  <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'monospace' }}>← →</kbd>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                  <span>Ignore duplicate (mark as done)</span>
-                  <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'monospace' }}>E</kbd>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                  <span>Delete backup copy</span>
-                  <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'monospace' }}>D</kbd>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                  <span>Cycle between tabs</span>
-                  <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'monospace' }}>C</kbd>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                  <span>Open settings</span>
-                  <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'monospace' }}>S</kbd>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                  <span>Start scan</span>
-                  <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'monospace' }}>K</kbd>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                  <span>Undo last action</span>
-                  <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'monospace' }}>⌘Z / Ctrl+Z</kbd>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-                  <span>Toggle this help</span>
-                  <kbd style={{ padding: '0.375rem 0.75rem', backgroundColor: '#fff', borderRadius: '4px', border: '1px solid #ccc', fontFamily: 'monospace' }}>?</kbd>
-                </div>
-              </div>
-              
-              <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#e3f2fd', borderRadius: '6px', fontSize: '0.875rem', color: '#0066cc' }}>
-                💡 Tip: All keyboard shortcuts work from anywhere in the app!
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      <HelpSidebar
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+      />
       
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 1rem' }}>
+      <div style={{ marginLeft: '250px', maxWidth: '1400px', margin: '0 auto 0 250px', padding: '0 1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #e0e0e0', marginBottom: '2rem' }}>
           <div style={{ display: 'flex' }}>
             <button

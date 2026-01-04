@@ -46,11 +46,15 @@ async def connection_status():
         success, error = SSHClient.connect()
         return {
             "connected": success,
-            "error": error
+            "error": error,
+            "nas_host": Config.NAS_HOST if success else None,
+            "nas_user": Config.NAS_USER if success else None
         }
     return {
         "connected": True,
-        "error": None
+        "error": None,
+        "nas_host": Config.NAS_HOST,
+        "nas_user": Config.NAS_USER
     }
 
 @api_router.post("/connection/test")

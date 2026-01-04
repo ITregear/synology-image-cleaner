@@ -168,13 +168,16 @@ def save_duplicates_to_db(duplicate_pairs: List[Dict], backup_path: str = '', so
         for pair in duplicate_pairs:
             is_ignored = (pair['backup_path'], pair['sorted_path']) in ignored_set
             
+            # Generate group_id if not present (use filename as group identifier)
+            group_id = pair.get('group_id', pair.get('filename', str(uuid.uuid4())))
+            
             cursor.execute("""
                 INSERT INTO review_queue (
                     group_id, backup_path, kept_path, reviewed, action, scan_session_id, created_at
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
-                pair['group_id'],
+                group_id,
                 pair['backup_path'],
                 pair['sorted_path'],
                 1 if is_ignored else 0,  # Mark as reviewed if ignored
