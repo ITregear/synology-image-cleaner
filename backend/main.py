@@ -111,10 +111,10 @@ async def get_sessions():
         }
 
 @api_router.get("/scan/duplicates")
-async def get_duplicates(scan_session_id: Optional[str] = None, limit: Optional[int] = None, offset: int = 0):
+async def get_duplicates(scan_session_id: Optional[str] = None, limit: Optional[int] = None, offset: int = 0, include_reviewed: bool = False):
     """Get duplicate pairs from a scan session."""
     try:
-        pairs = get_duplicates_from_db(scan_session_id, limit, offset)
+        pairs = get_duplicates_from_db(scan_session_id, limit, offset, include_reviewed)
         return {
             "pairs": pairs,
             "count": len(pairs),

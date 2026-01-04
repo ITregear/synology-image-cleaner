@@ -80,7 +80,7 @@ function InboxScreen() {
     if (!sessionId) return
     
     try {
-      const response = await fetch(`/api/scan/duplicates?scan_session_id=${encodeURIComponent(sessionId)}`)
+      const response = await fetch(`/api/scan/duplicates?scan_session_id=${encodeURIComponent(sessionId)}&include_reviewed=true`)
       const data = await response.json()
       if (!data.error) {
         const ignored = (data.pairs || []).filter(p => p.reviewed && p.action === 'ignored')
@@ -247,6 +247,8 @@ function InboxScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           review_id: currentIgnoredPair.id,
+          backup_path: currentIgnoredPair.backup_path,
+          sorted_path: currentIgnoredPair.sorted_path,
           session_id: scanSessionId
         })
       })
@@ -272,20 +274,24 @@ function InboxScreen() {
   const totalIgnored = ignoredPairs.length
 
   const handlePrevious = useCallback(() => {
-    if (selectedImage === null || selectedImage === 'backup') {
-      setSelectedImage('backup')
-    } else {
-      setSelectedImage('kept')
+    if (activeTab === 'duplicates' && duplicatePairs.length > 0) {
+      setCurrentIndex(prev => (prev > 0 ? prev - 1 : duplicatePairs.length - 1))
+      setSelectedImage(null)
+    } else if (activeTab === 'ignored' && ignoredPairs.length > 0) {
+      setCurrentIndex(prev => (prev > 0 ? prev - 1 : ignoredPairs.length - 1))
+      setSelectedImage(null)
     }
-  }, [selectedImage])
+  }, [activeTab, duplicatePairs.length, ignoredPairs.length])
 
   const handleNext = useCallback(() => {
-    if (selectedImage === null || selectedImage === 'kept') {
-      setSelectedImage('kept')
-    } else {
-      setSelectedImage('backup')
+    if (activeTab === 'duplicates' && duplicatePairs.length > 0) {
+      setCurrentIndex(prev => (prev < duplicatePairs.length - 1 ? prev + 1 : 0))
+      setSelectedImage(null)
+    } else if (activeTab === 'ignored' && ignoredPairs.length > 0) {
+      setCurrentIndex(prev => (prev < ignoredPairs.length - 1 ? prev + 1 : 0))
+      setSelectedImage(null)
     }
-  }, [selectedImage])
+  }, [activeTab, duplicatePairs.length, ignoredPairs.length])
 
   const cycleTab = useCallback(() => {
     setActiveTab(prev => {
@@ -673,7 +679,7 @@ function InboxScreen() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="flex items-center gap-2">
                   <kbd className="sh-kbd text-xs">←/→</kbd>
-                  <span className="text-sh-text-secondary">Cycle images</span>
+                  <span className="text-sh-text-secondary">Navigate pairs</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <kbd className="sh-kbd text-xs">E</kbd>

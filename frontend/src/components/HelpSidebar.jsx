@@ -73,7 +73,7 @@ function HelpSidebar({ isOpen, onClose }) {
               <div className="space-y-3">
                 <ShortcutItem 
                   keys={['←', '→']} 
-                  description="Cycle between backup and kept images" 
+                  description="Navigate between duplicate pairs" 
                 />
                 <ShortcutItem 
                   keys={['C']} 
