@@ -6,7 +6,7 @@ function Layout({ children }) {
   
   const navItems = [
     { path: '/connect', label: 'Connect' },
-    { path: '/reports', label: 'Reports' },
+    { path: '/scan', label: 'Scan' },
     { path: '/review', label: 'Review' },
   ]
   

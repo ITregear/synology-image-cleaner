@@ -1,11 +1,11 @@
 import os
 import hashlib
-import tempfile
 from typing import Optional
-from PIL import Image
-import io
+import logging
 from backend.ssh_client import SSHClient
 from backend.config import Config
+
+logger = logging.getLogger(__name__)
 
 def get_cache_key(path: str, mtime: float, size: int) -> str:
     key_string = f"{path}:{mtime}:{size}"
@@ -28,8 +28,11 @@ def get_file_stats(remote_path: str) -> Optional[tuple]:
     return None
 
 def fetch_and_resize_image(remote_path: str, max_size: int = 512) -> Optional[bytes]:
+    logger.info(f"Fetching thumbnail for: {remote_path}")
+    
     stats = get_file_stats(remote_path)
     if not stats:
+        logger.warning(f"Could not get file stats for: {remote_path}")
         return None
     
     mtime, size = stats
@@ -37,46 +40,73 @@ def fetch_and_resize_image(remote_path: str, max_size: int = 512) -> Optional[by
     cached_path = get_thumbnail_path(cache_key)
     
     if os.path.exists(cached_path):
+        logger.debug(f"Using cached thumbnail: {cached_path}")
         with open(cached_path, 'rb') as f:
             return f.read()
     
-    sftp = SSHClient.get_sftp()
-    if not sftp:
-        return None
+    logger.info(f"Cache miss, generating thumbnail on NAS using ffmpeg: {remote_path}")
     
+    # Use ffmpeg on the NAS to generate thumbnail remotely, then transfer the small file
+    # This is much more efficient than downloading the full image
     try:
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            local_path = tmp_file.name
+        if not SSHClient.is_connected():
+            success, error = SSHClient.connect()
+            if not success:
+                logger.error(f"SSH connection failed: {error}")
+                return None
         
-        sftp.get(remote_path, local_path)
+        logger.debug(f"Running ffmpeg to generate {max_size}px thumbnail")
         
-        try:
-            with Image.open(local_path) as img:
-                img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-                
-                if img.mode in ('RGBA', 'LA', 'P'):
-                    background = Image.new('RGB', img.size, (255, 255, 255))
-                    if img.mode == 'P':
-                        img = img.convert('RGBA')
-                    background.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
-                    img = background
-                elif img.mode != 'RGB':
-                    img = img.convert('RGB')
-                
-                output = io.BytesIO()
-                img.save(output, format='JPEG', quality=85, optimize=True)
-                thumbnail_bytes = output.getvalue()
-                
-                os.makedirs(os.path.dirname(cached_path), exist_ok=True)
-                with open(cached_path, 'wb') as f:
-                    f.write(thumbnail_bytes)
-                
-                return thumbnail_bytes
-        finally:
-            if os.path.exists(local_path):
-                os.unlink(local_path)
-                
+        # Use ffmpeg to resize and output to stdout as JPEG
+        # Suppress ffmpeg banner and info with -loglevel error
+        # -i input file
+        # -vf scale to maintain aspect ratio, max dimension is max_size
+        # -frames:v 1 to output only one frame
+        # -c:v mjpeg for JPEG output
+        # -q:v 5 for quality (2-5 is good, 2=best)
+        # -f mjpeg for MJPEG format output
+        ffmpeg_cmd = f'ffmpeg -loglevel error -i "{remote_path}" -vf "scale=\'min({max_size},iw)\':\'min({max_size},ih)\':force_original_aspect_ratio=decrease" -frames:v 1 -c:v mjpeg -q:v 5 -f mjpeg pipe:1'
+        
+        # Execute ffmpeg and capture binary output
+        transport = SSHClient._client.get_transport()
+        channel = transport.open_session()
+        channel.exec_command(ffmpeg_cmd)
+        
+        # Read binary thumbnail data from stdout
+        thumbnail_bytes = b''
+        while True:
+            chunk = channel.recv(8192)
+            if not chunk:
+                break
+            thumbnail_bytes += chunk
+        
+        # Read any error output
+        stderr_bytes = b''
+        while channel.recv_stderr_ready():
+            stderr_bytes += channel.recv_stderr(8192)
+        
+        exit_status = channel.recv_exit_status()
+        channel.close()
+        
+        if exit_status != 0:
+            stderr_text = stderr_bytes.decode('utf-8', errors='ignore') if stderr_bytes else 'No error output'
+            logger.error(f"ffmpeg failed with exit status {exit_status}. Error: {stderr_text}")
+            return None
+        
+        if not thumbnail_bytes:
+            logger.error(f"ffmpeg succeeded but produced no output")
+            return None
+        
+        logger.info(f"Thumbnail generated successfully: {len(thumbnail_bytes)} bytes")
+        
+        # Cache the thumbnail
+        os.makedirs(os.path.dirname(cached_path), exist_ok=True)
+        with open(cached_path, 'wb') as f:
+            f.write(thumbnail_bytes)
+        
+        return thumbnail_bytes
+        
     except Exception as e:
-        print(f"Error processing image {remote_path}: {e}")
+        logger.exception(f"Error generating thumbnail with ffmpeg: {e}")
         return None
 

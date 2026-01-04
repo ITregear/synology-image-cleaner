@@ -1,82 +1,193 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 function ReviewScreen() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { scanSessionId, duplicateCount, backupPath, sortedPath } = location.state || {}
+  
   const [activeTab, setActiveTab] = useState('duplicated')
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [duplicateGroups, setDuplicateGroups] = useState([])
+  const [duplicatePairs, setDuplicatePairs] = useState([])
+  const [allPairs, setAllPairs] = useState([]) // Keep all pairs for filtering
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [selectedReport, setSelectedReport] = useState(null)
-  const [backupThumbnails, setBackupThumbnails] = useState({})
-  const [sortedThumbnails, setSortedThumbnails] = useState({})
+  const [stats, setStats] = useState(null)
+  const [actionInProgress, setActionInProgress] = useState(false)
   const containerRef = useRef(null)
 
   useEffect(() => {
-    const reportPath = new URLSearchParams(location.search).get('report')
-    if (!reportPath) {
-      navigate('/reports')
+    if (!scanSessionId) {
+      navigate('/scan')
       return
     }
 
-    setSelectedReport({ path: reportPath })
-    importReport(reportPath)
-  }, [location.search, navigate])
+    loadDuplicates()
+  }, [scanSessionId, navigate])
 
-  const importReport = async (reportPath) => {
+  const loadDuplicates = async () => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/reports/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report_path: reportPath })
-      })
+      const response = await fetch(`/api/scan/duplicates?scan_session_id=${encodeURIComponent(scanSessionId)}`)
       const data = await response.json()
-      if (data.success) {
-        setDuplicateGroups(data.groups || [])
+      if (data.error) {
+        setError(data.error)
+        setDuplicatePairs([])
+        setAllPairs([])
       } else {
-        setError(data.error || 'Failed to import report')
+        // Transform pairs and filter out reviewed ones
+        const pairs = (data.pairs || []).map(pair => ({
+          backup_path: pair.backup_path,
+          sorted_path: pair.sorted_path,
+          id: pair.id,
+          reviewed: pair.reviewed,
+          action: pair.action
+        }))
+        setAllPairs(pairs)
+        // Only show unreviewed pairs
+        const unreviewed = pairs.filter(p => !p.reviewed)
+        setDuplicatePairs(unreviewed)
+        setCurrentIndex(0)
       }
+      
+      // Load stats
+      await loadStats()
     } catch (err) {
-      setError('Failed to import report: ' + err.message)
+      setError('Failed to load duplicates: ' + err.message)
+      setDuplicatePairs([])
+      setAllPairs([])
     } finally {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (duplicateGroups.length > 0 && currentIndex < duplicateGroups.length) {
-      const group = duplicateGroups[currentIndex]
-      loadThumbnail(group.backup_path, 'backup')
-      loadThumbnail(group.sorted_path, 'sorted')
-    }
-  }, [duplicateGroups, currentIndex])
-
-  const loadThumbnail = async (path, type) => {
-    if (!path) return
-    
-    const key = `${currentIndex}-${type}`
-    if (type === 'backup' && backupThumbnails[key]) return
-    if (type === 'sorted' && sortedThumbnails[key]) return
-
+  
+  const loadStats = async () => {
     try {
-      const response = await fetch(`/api/thumb?path=${encodeURIComponent(path)}`)
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = URL.createObjectURL(blob)
-        if (type === 'backup') {
-          setBackupThumbnails(prev => ({ ...prev, [key]: url }))
-        } else {
-          setSortedThumbnails(prev => ({ ...prev, [key]: url }))
-        }
-      }
+      const response = await fetch(`/api/review/stats?scan_session_id=${encodeURIComponent(scanSessionId)}`)
+      const data = await response.json()
+      setStats(data)
     } catch (err) {
-      console.error(`Error loading thumbnail for ${path}:`, err)
+      console.error('Failed to load stats:', err)
     }
   }
+  
+  const handleIgnore = async () => {
+    if (!currentPair || actionInProgress) return
+    
+    setActionInProgress(true)
+    try {
+      const response = await fetch('/api/review/ignore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          review_id: currentPair.id,
+          backup_path: currentPair.backup_path,
+          sorted_path: currentPair.sorted_path,
+          session_id: scanSessionId
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to ignore duplicate')
+      }
+      
+      // Remove from current list and move to next
+      const newPairs = duplicatePairs.filter((_, idx) => idx !== currentIndex)
+      setDuplicatePairs(newPairs)
+      
+      // Adjust index if needed
+      if (currentIndex >= newPairs.length && newPairs.length > 0) {
+        setCurrentIndex(newPairs.length - 1)
+      }
+      
+      await loadStats()
+    } catch (err) {
+      alert('Error ignoring duplicate: ' + err.message)
+    } finally {
+      setActionInProgress(false)
+    }
+  }
+  
+  const handleDelete = async () => {
+    if (!currentPair || actionInProgress) return
+    
+    setActionInProgress(true)
+    try {
+      const response = await fetch('/api/review/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          review_id: currentPair.id,
+          backup_path: currentPair.backup_path,
+          sorted_path: currentPair.sorted_path,
+          session_id: scanSessionId
+        })
+      })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.detail || 'Failed to delete duplicate')
+      }
+      
+      // Remove from current list and move to next
+      const newPairs = duplicatePairs.filter((_, idx) => idx !== currentIndex)
+      setDuplicatePairs(newPairs)
+      
+      // Adjust index if needed
+      if (currentIndex >= newPairs.length && newPairs.length > 0) {
+        setCurrentIndex(newPairs.length - 1)
+      }
+      
+      await loadStats()
+    } catch (err) {
+      alert('Error deleting duplicate: ' + err.message)
+    } finally {
+      setActionInProgress(false)
+    }
+  }
+  
+  const handleUndo = async () => {
+    if (actionInProgress) return
+    
+    setActionInProgress(true)
+    try {
+      const response = await fetch('/api/review/undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: scanSessionId
+        })
+      })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.detail || 'Nothing to undo')
+      }
+      
+      // Reload duplicates to reflect the undone action
+      await loadDuplicates()
+    } catch (err) {
+      alert('Error undoing: ' + err.message)
+    } finally {
+      setActionInProgress(false)
+    }
+  }
+
+  const currentPair = duplicatePairs[currentIndex]
+  const totalPairs = duplicatePairs.length
+
+  const handlePrevious = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1)
+    }
+  }, [currentIndex])
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < totalPairs - 1) {
+      setCurrentIndex(currentIndex + 1)
+    }
+  }, [currentIndex, totalPairs])
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -88,65 +199,79 @@ function ReviewScreen() {
         handlePrevious()
       } else if (e.key === 'ArrowRight') {
         handleNext()
+      } else if (e.key === 'e' || e.key === 'E') {
+        handleIgnore()
+      } else if (e.key === 'd' || e.key === 'D') {
+        handleDelete()
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault()
+        handleUndo()
       }
     }
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [currentIndex, duplicateGroups.length])
-
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1)
-    }
-  }
-
-  const handleNext = () => {
-    if (currentIndex < duplicateGroups.length - 1) {
-      setCurrentIndex(currentIndex + 1)
-    }
-  }
-
-  const currentGroup = duplicateGroups[currentIndex]
-  const backupThumb = backupThumbnails[`${currentIndex}-backup`]
-  const sortedThumb = sortedThumbnails[`${currentIndex}-sorted`]
+  }, [handlePrevious, handleNext, handleIgnore, handleDelete, handleUndo])
 
   if (loading) {
     return (
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         <h2>Review Duplicates</h2>
-        <p>Loading report...</p>
+        <p>Loading duplicates...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        <h2>Review Duplicates</h2>
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#ffebee',
-          color: '#c62828',
-          borderRadius: '4px',
-          marginBottom: '1rem'
-        }}>
-          Error: {error}
-        </div>
-        <button onClick={() => navigate('/reports')}>
-          Back to Reports
+      <div style={{ maxWidth: '1400px', margin: '0 auto', color: '#c62828' }}>
+        <h2>Error</h2>
+        <p>Failed to load duplicates: {error}</p>
+        <button onClick={() => navigate('/scan')} style={{ padding: '0.5rem 1rem', cursor: 'pointer' }}>
+          Back to Scan
         </button>
       </div>
     )
   }
 
-  if (duplicateGroups.length === 0) {
+  if (duplicatePairs.length === 0) {
     return (
-      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-        <h2>Review Duplicates</h2>
-        <p>No duplicate groups found in this report.</p>
-        <button onClick={() => navigate('/reports')}>
-          Back to Reports
+      <div style={{ maxWidth: '1400px', margin: '0 auto', textAlign: 'center', padding: '4rem 2rem', backgroundColor: '#f0f7ff', borderRadius: '12px', border: '2px solid #0066cc' }}>
+        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+        <h2 style={{ color: '#0066cc', fontSize: '2rem', marginBottom: '1rem' }}>Inbox Zero!</h2>
+        <p style={{ color: '#666', fontSize: '1.125rem', marginBottom: '2rem' }}>
+          All duplicates have been reviewed.
+        </p>
+        {stats && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginBottom: '2rem', fontSize: '1rem' }}>
+            <div>
+              <div style={{ fontWeight: '600', color: '#0066cc' }}>{stats.deleted}</div>
+              <div style={{ color: '#666', fontSize: '0.875rem' }}>Deleted</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: '600', color: '#0066cc' }}>{stats.ignored}</div>
+              <div style={{ color: '#666', fontSize: '0.875rem' }}>Ignored</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: '600', color: '#0066cc' }}>{stats.total}</div>
+              <div style={{ color: '#666', fontSize: '0.875rem' }}>Total Reviewed</div>
+            </div>
+          </div>
+        )}
+        <button 
+          onClick={() => navigate('/scan')} 
+          style={{ 
+            padding: '0.75rem 2rem', 
+            fontSize: '1rem',
+            backgroundColor: '#0066cc',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}
+        >
+          Back to Scan
         </button>
       </div>
     )
@@ -154,59 +279,50 @@ function ReviewScreen() {
 
   return (
     <div ref={containerRef} style={{ maxWidth: '1400px', margin: '0 auto' }}>
-      {selectedReport && (
-        <div style={{
-          padding: '1rem',
-          backgroundColor: '#f8f9fa',
-          borderRadius: '8px',
-          marginBottom: '2rem'
-        }}>
-          <div style={{ fontWeight: '600', marginBottom: '0.5rem' }}>
-            Report: {selectedReport.path.split('/').pop()}
-          </div>
-          <div style={{ fontSize: '0.875rem', color: '#666', fontFamily: 'monospace' }}>
-            {selectedReport.path}
-          </div>
-        </div>
-      )}
+      <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e0e0e0', paddingBottom: '1rem' }}>
+        <h2 style={{ margin: 0 }}>Review Duplicates</h2>
+        {backupPath && sortedPath && (
+          <>
+            <p style={{ color: '#666', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+              Backup: <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{backupPath}</span>
+            </p>
+            <p style={{ fontSize: '0.875rem', color: '#999', fontFamily: 'monospace', margin: 0 }}>
+              Sorted: {sortedPath}
+            </p>
+          </>
+        )}
+      </div>
 
-      <div style={{
-        display: 'flex',
-        gap: '1rem',
-        marginBottom: '2rem',
-        borderBottom: '2px solid #e0e0e0'
-      }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid #e0e0e0', marginBottom: '2rem' }}>
         <button
           onClick={() => setActiveTab('duplicated')}
           style={{
             padding: '0.75rem 1.5rem',
-            fontSize: '1rem',
-            backgroundColor: activeTab === 'duplicated' ? '#0066cc' : 'transparent',
-            color: activeTab === 'duplicated' ? 'white' : '#666',
             border: 'none',
-            borderBottom: activeTab === 'duplicated' ? '3px solid #0066cc' : '3px solid transparent',
+            borderBottom: activeTab === 'duplicated' ? '2px solid #0066cc' : 'none',
+            backgroundColor: 'transparent',
             cursor: 'pointer',
-            fontWeight: '600',
-            marginBottom: '-2px'
+            fontSize: '1rem',
+            fontWeight: activeTab === 'duplicated' ? '600' : '400',
+            color: activeTab === 'duplicated' ? '#0066cc' : '#666',
           }}
         >
-          Duplicated ({duplicateGroups.length})
+          Duplicated Photos ({totalPairs})
         </button>
         <button
           onClick={() => setActiveTab('missing')}
           style={{
             padding: '0.75rem 1.5rem',
-            fontSize: '1rem',
-            backgroundColor: activeTab === 'missing' ? '#0066cc' : 'transparent',
-            color: activeTab === 'missing' ? 'white' : '#666',
             border: 'none',
-            borderBottom: activeTab === 'missing' ? '3px solid #0066cc' : '3px solid transparent',
+            borderBottom: activeTab === 'missing' ? '2px solid #0066cc' : 'none',
+            backgroundColor: 'transparent',
             cursor: 'pointer',
-            fontWeight: '600',
-            marginBottom: '-2px'
+            fontSize: '1rem',
+            fontWeight: activeTab === 'missing' ? '600' : '400',
+            color: activeTab === 'missing' ? '#0066cc' : '#666',
           }}
         >
-          Missing (Coming Soon)
+          Missing Photos (Coming Soon)
         </button>
       </div>
 
@@ -218,13 +334,13 @@ function ReviewScreen() {
             alignItems: 'center',
             marginBottom: '2rem'
           }}>
-            <h3 style={{ margin: 0 }}>Duplicate Images</h3>
+            <h3 style={{ margin: 0 }}>Reviewing Duplicates</h3>
             <div style={{ 
               fontSize: '1.125rem', 
               fontWeight: '600',
               color: '#666'
             }}>
-              {currentIndex + 1} / {duplicateGroups.length}
+              {currentIndex + 1} / {totalPairs}
             </div>
           </div>
 
@@ -243,7 +359,7 @@ function ReviewScreen() {
               <h4 style={{ marginTop: 0, color: '#856404' }}>Backup Copy</h4>
               <div style={{
                 width: '100%',
-                minHeight: '400px',
+                height: '400px',
                 backgroundColor: '#f8f9fa',
                 display: 'flex',
                 alignItems: 'center',
@@ -253,18 +369,14 @@ function ReviewScreen() {
                 border: '1px solid #e0e0e0',
                 overflow: 'hidden'
               }}>
-                {backupThumb ? (
-                  <img 
-                    src={backupThumb} 
-                    alt="Backup" 
-                    style={{ 
-                      maxWidth: '100%', 
-                      maxHeight: '400px',
-                      objectFit: 'contain'
-                    }} 
+                {currentPair?.backup_path ? (
+                  <img
+                    src={`/api/thumb?path=${encodeURIComponent(currentPair.backup_path)}`}
+                    alt="Backup Thumbnail"
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                   />
                 ) : (
-                  <span style={{ color: '#999' }}>Loading thumbnail...</span>
+                  <span style={{ color: '#999' }}>No Backup Image</span>
                 )}
               </div>
               <div style={{
@@ -276,7 +388,7 @@ function ReviewScreen() {
                 backgroundColor: '#f8f9fa',
                 borderRadius: '4px'
               }}>
-                {currentGroup?.backup_path || 'N/A'}
+                {currentPair?.backup_path || 'N/A'}
               </div>
             </div>
 
@@ -289,7 +401,7 @@ function ReviewScreen() {
               <h4 style={{ marginTop: 0, color: '#0c5460' }}>Kept Copy</h4>
               <div style={{
                 width: '100%',
-                minHeight: '400px',
+                height: '400px',
                 backgroundColor: '#f8f9fa',
                 display: 'flex',
                 alignItems: 'center',
@@ -299,18 +411,14 @@ function ReviewScreen() {
                 border: '1px solid #e0e0e0',
                 overflow: 'hidden'
               }}>
-                {sortedThumb ? (
-                  <img 
-                    src={sortedThumb} 
-                    alt="Kept" 
-                    style={{ 
-                      maxWidth: '100%', 
-                      maxHeight: '400px',
-                      objectFit: 'contain'
-                    }} 
+                {currentPair?.sorted_path ? (
+                  <img
+                    src={`/api/thumb?path=${encodeURIComponent(currentPair.sorted_path)}`}
+                    alt="Kept Thumbnail"
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                   />
                 ) : (
-                  <span style={{ color: '#999' }}>Loading thumbnail...</span>
+                  <span style={{ color: '#999' }}>No Kept Image</span>
                 )}
               </div>
               <div style={{
@@ -322,7 +430,7 @@ function ReviewScreen() {
                 backgroundColor: '#f8f9fa',
                 borderRadius: '4px'
               }}>
-                {currentGroup?.sorted_path || 'N/A'}
+                {currentPair?.sorted_path || 'N/A'}
               </div>
             </div>
           </div>
@@ -333,7 +441,8 @@ function ReviewScreen() {
             justifyContent: 'center',
             padding: '1.5rem',
             backgroundColor: '#f8f9fa',
-            borderRadius: '8px'
+            borderRadius: '8px',
+            alignItems: 'center'
           }}>
             <button
               onClick={handlePrevious}
@@ -349,23 +458,72 @@ function ReviewScreen() {
                 fontWeight: '600'
               }}
             >
-              ← Previous (←)
+              ← Previous
             </button>
             <button
-              onClick={handleNext}
-              disabled={currentIndex >= duplicateGroups.length - 1}
+              onClick={handleIgnore}
+              disabled={actionInProgress}
               style={{
                 padding: '0.75rem 2rem',
                 fontSize: '1rem',
-                backgroundColor: currentIndex >= duplicateGroups.length - 1 ? '#ccc' : '#6c757d',
+                backgroundColor: actionInProgress ? '#ccc' : '#ffa726',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
-                cursor: currentIndex >= duplicateGroups.length - 1 ? 'not-allowed' : 'pointer',
+                cursor: actionInProgress ? 'not-allowed' : 'pointer',
                 fontWeight: '600'
               }}
             >
-              Next (→) →
+              Ignore (E)
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={actionInProgress}
+              style={{
+                padding: '0.75rem 2rem',
+                fontSize: '1rem',
+                backgroundColor: actionInProgress ? '#ccc' : '#d32f2f',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: actionInProgress ? 'not-allowed' : 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Delete (D)
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={currentIndex >= totalPairs - 1}
+              style={{
+                padding: '0.75rem 2rem',
+                fontSize: '1rem',
+                backgroundColor: currentIndex >= totalPairs - 1 ? '#ccc' : '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: currentIndex >= totalPairs - 1 ? 'not-allowed' : 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Next →
+            </button>
+            <div style={{ borderLeft: '2px solid #ddd', height: '40px', margin: '0 0.5rem' }}></div>
+            <button
+              onClick={handleUndo}
+              disabled={actionInProgress}
+              style={{
+                padding: '0.75rem 2rem',
+                fontSize: '1rem',
+                backgroundColor: actionInProgress ? '#ccc' : '#0066cc',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: actionInProgress ? 'not-allowed' : 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              Undo (Ctrl+Z)
             </button>
           </div>
 
@@ -376,18 +534,50 @@ function ReviewScreen() {
             borderRadius: '4px',
             fontSize: '0.875rem'
           }}>
-            <strong>Navigation:</strong>
+            <strong>Keyboard Shortcuts:</strong>
             <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
-              <li><strong>←</strong> / <strong>→</strong> - Navigate between duplicates</li>
-              <li>Delete functionality will be enabled in the next step</li>
+              <li><strong>ArrowLeft / ArrowRight</strong> - Navigate between duplicates</li>
+              <li><strong>E</strong> - Ignore this duplicate (won't show again)</li>
+              <li><strong>D</strong> - Delete backup copy (moves to recycle bin)</li>
+              <li><strong>Ctrl+Z / Cmd+Z</strong> - Undo last action</li>
             </ul>
           </div>
+          
+          {stats && (
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1rem',
+              backgroundColor: '#f0f7ff',
+              borderRadius: '4px',
+              display: 'flex',
+              justifyContent: 'space-around',
+              fontSize: '0.875rem'
+            }}>
+              <div>
+                <div style={{ fontWeight: '600', fontSize: '1.25rem', color: '#0066cc' }}>{stats.remaining}</div>
+                <div style={{ color: '#666' }}>Remaining</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: '600', fontSize: '1.25rem', color: '#d32f2f' }}>{stats.deleted}</div>
+                <div style={{ color: '#666' }}>Deleted</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: '600', fontSize: '1.25rem', color: '#ffa726' }}>{stats.ignored}</div>
+                <div style={{ color: '#666' }}>Ignored</div>
+              </div>
+              <div>
+                <div style={{ fontWeight: '600', fontSize: '1.25rem', color: '#666' }}>{stats.reviewed} / {stats.total}</div>
+                <div style={{ color: '#666' }}>Progress</div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {activeTab === 'missing' && (
-        <div style={{ padding: '2rem', textAlign: 'center', color: '#666' }}>
-          Missing photos review coming soon...
+        <div style={{ padding: '2rem', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center', color: '#666' }}>
+          <h3>Missing Photos</h3>
+          <p>This feature is coming soon!</p>
         </div>
       )}
     </div>
@@ -395,3 +585,4 @@ function ReviewScreen() {
 }
 
 export default ReviewScreen
+

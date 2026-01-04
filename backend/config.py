@@ -24,9 +24,6 @@ class Config:
             "nas_host": cls.NAS_HOST is not None,
             "nas_user": cls.NAS_USER is not None,
             "nas_password": cls.NAS_PASSWORD is not None or cls.NAS_SSH_KEY_PATH is not None,
-            "nas_reports_root": cls.NAS_REPORTS_ROOT is not None,
-            "backup_root": cls.BACKUP_ROOT is not None,
-            "sorted_root": cls.SORTED_ROOT is not None,
             "local_state_dir": cls.LOCAL_STATE_DIR,
         }
     

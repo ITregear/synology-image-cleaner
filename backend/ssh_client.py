@@ -1,7 +1,10 @@
 import paramiko
 import os
+import logging
 from typing import Optional, Tuple
 from backend.config import Config
+
+logger = logging.getLogger(__name__)
 
 class SSHClient:
     _client: Optional[paramiko.SSHClient] = None
@@ -93,26 +96,65 @@ class SSHClient:
     
     @classmethod
     def get_sftp(cls) -> Optional[paramiko.SFTPClient]:
+        """Get an SFTP client by reusing the main SSH connection."""
+        # Ensure we have an active SSH connection
         if not cls.is_connected():
-            success, _ = cls.connect()
+            success, error = cls.connect()
             if not success:
+                logger.error(f"Could not establish SSH connection: {error}")
                 return None
         
-        try:
-            if cls._sftp:
-                try:
-                    cls._sftp.listdir('.')
-                except:
-                    cls._sftp = None
-        except:
-            cls._sftp = None
-        
-        if not cls._sftp:
+        # Try to reuse existing SFTP if it's still valid
+        if cls._sftp:
             try:
-                cls._sftp = cls._client.open_sftp()
-            except Exception as e:
-                print(f"Error opening SFTP: {e}")
-                return None
+                # Test if SFTP is still alive by trying a simple operation
+                cls._sftp.stat('.')
+                logger.debug("Reusing existing SFTP connection")
+                return cls._sftp
+            except:
+                # SFTP is dead, close it
+                logger.debug("Existing SFTP connection is stale, creating new one")
+                try:
+                    cls._sftp.close()
+                except:
+                    pass
+                cls._sftp = None
         
-        return cls._sftp
+        # Create new SFTP from the existing SSH connection
+        # Manually create channel and invoke SFTP subsystem for better Synology compatibility
+        try:
+            logger.debug("Opening new SFTP channel on existing SSH connection")
+            transport = cls._client.get_transport()
+            if not transport or not transport.is_active():
+                raise Exception("Transport is not active")
+            
+            # Create a new channel manually
+            chan = transport.open_session()
+            chan.invoke_subsystem('sftp')
+            
+            # Create SFTP client from the channel
+            cls._sftp = paramiko.SFTPClient(chan)
+            logger.info("SFTP channel opened successfully")
+            return cls._sftp
+        except Exception as e:
+            logger.error(f"Error opening SFTP channel: {e}")
+            # If this fails, the SSH connection itself might be bad
+            # Try to reconnect completely
+            try:
+                logger.info("Attempting full SSH reconnection for SFTP")
+                cls.disconnect()
+                success, error = cls.connect()
+                if success:
+                    transport = cls._client.get_transport()
+                    if transport and transport.is_active():
+                        chan = transport.open_session()
+                        chan.invoke_subsystem('sftp')
+                        cls._sftp = paramiko.SFTPClient(chan)
+                        logger.info("SFTP channel opened successfully after reconnection")
+                        return cls._sftp
+                else:
+                    logger.error(f"Reconnection failed: {error}")
+            except Exception as e2:
+                logger.error(f"Error during reconnection: {e2}")
+            return None
 

@@ -30,7 +30,18 @@ def init_db():
             kept_path TEXT,
             reviewed INTEGER DEFAULT 0,
             action TEXT,
+            scan_session_id TEXT,
             created_at TEXT NOT NULL
+        )
+    """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS scan_sessions (
+            id TEXT PRIMARY KEY,
+            backup_path TEXT NOT NULL,
+            sorted_path TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            pair_count INTEGER DEFAULT 0
         )
     """)
     
@@ -41,6 +52,32 @@ def init_db():
             size INTEGER,
             hash_key TEXT,
             cached_at TEXT NOT NULL
+        )
+    """)
+    
+    # Create undo stack table for session-based undo
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS undo_stack (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            review_id INTEGER NOT NULL,
+            previous_action TEXT,
+            previous_reviewed INTEGER,
+            backup_path TEXT NOT NULL,
+            original_location TEXT,
+            recycle_location TEXT,
+            timestamp TEXT NOT NULL
+        )
+    """)
+    
+    # Create ignored pairs table for persistent ignore
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ignored_pairs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            backup_path TEXT NOT NULL,
+            sorted_path TEXT NOT NULL,
+            ignored_at TEXT NOT NULL,
+            UNIQUE(backup_path, sorted_path)
         )
     """)
     
